@@ -1,0 +1,148 @@
+
+-Known Bugs/issues:
+*Random colors can be too identical to each other
+*Double-clicking causes errors with nodes out of range
+*Capturing can sometimes break, and removing capture points is sometimes slower than adding them
+
+-Todo list: 
+*Improve controls and UI
+-Add click-and-drag selection
+*Add balancing
+*Special nodes
+
+Pre-Alpha:
+
+3/24/17:
+*Added leaderboard
+*Added player naming system
+
+3/23/17:
+*Fixed control bugs
+*Added dragging the map using the mouse
+*Balancing changes: spawning time significantly increased, unit capacity decreased
+*Performance improvement at high zoom level: units are now smaller
+
+3/22/17:
+*Controls overhaul
+-Hold down mouse and drag to select multiple nodes, release to attack
+
+3/21/17:
+*Balancing changes
+-Combat is now slower, but capturing is now faster
+-Also reduced the capability of spawning while a node is in combat
+-Minimum unit capacity is 10x level (or 100)
+*Renamed to Spheres.io
+*Increased area between each node to avoid UI overlap, reduced nodes generated
+*Added a main menu
+-Changed spawning system to use new menu
+
+3/20/17:
+*AI priorities overhaul
+-AI is now able to capture, attack, and defend effectively
+*Graphics are optimized to handle zoom (font size increases, less units are drawn)
+*Fixed a bug where evacuating all units from a node could delete all units in combat
+
+3/15/17:
+*AI Change: The AI now uses a value system to determine the most valuable move
+-Currenty priorities are WIP
+*Fixed a bug where capturing a node removed all occupiednodes after that node
+
+3/13/17:
+*Deployed the hash map system, minimized use of the allObjects field
+-Optimization: calculateUnitCapacity only looks in occupiedNodes instead of all nodes
+-Optimization: hash map's range detection is used to optimize mouse selection
+-Optimization: hash map's range detection is used to optimize AI target-finding
+
+3/10/17:
+*Implemented improved graphics system
+*Switched to using a hash map instead of quadtree (because objects are spread out, a quadtree would be ineffective)
+
+3/8/17:
+*Reworked capturing code: nodes now have a specific team that is capturing them. If another team takes over, they will remove that capturing.
+*Improved controls: double-click should be more intuitive
+-Side-effect: units now have a 500ms delay between move
+*Began rework of graphics engine
+
+3/6/17:
+*Fixed a bug where an AI with no controlled nodes would cause an error
+*Added player elimination mechanics
+*Attempted to prevent bots from making invalid moving groups
+*controlledNodes changed to occupiedNodes
+-should later include any node with units present on it
+*Began to implement quadtree for improved range detection
+
+3/3/17:
+*Added controller object, inheritance chain for all controllers (playercontroller and botcontroller)
+*Unit cap is now global, added total units indicator
+*Added maximum range (units cannot be sent to points outside maximum range)
+*Added terrible bot AI (bots are not capable of decision-making, and just spam units)
+*Game is now pre-alpha (all core features are present)
+
+Protocode:
+
+3/2/17:
+*Resizing now works properly
+*Added zooming features
+*Fixed a bug where new players could only spawn on non-neutral nodes (now only spawn on neutral nodes)
+*Added random color generator, changed team generation algorithm (spawning a new team pushes out a new color as well)
+*Added backbone for AI bots
+
+3/1/17:
+*Fixed a bug where removing all units from a node being captured would instantly capture (now stops capturing)
+*Nodes can now spawn if no units are on the node from any team
+*Attempted to fix resizing issues (failed)
+
+2/28/17:
+*Made timers for moving units, capturing, and spawning asynchronous (not based off of main gameTick)
+-GameTick is only called to start these timers as needed, only triggers 10 times per second
+*Implemented constants to allow for configuration
+*Added multiplier to slow spawning when node is under attack
+*Added graphic to show capturing progress
+*Began implementing double-click feature
+
+2/27/17:
+*Completed implementation of movingGroup system
+*Groups move between nodes to transfer units, instead of teleporting
+
+2/24/17:
+*Controls are disabled if the player has not spawned in yet
+*Implemented movement between nodes, core game mechanic is active
+*Started implementation of movingUnit class
+
+2/23/17:
+*Added playerController class for user input methods
+
+2/22/17:
+*Added spawning system: press Enter to spawn in as a new player
+*Added basic capturing mechanics
+*Failed attempt to create control system
+
+2/21/17:
+*Refactoring: drawcontroller removed and supplanted by viewport, fight method moved into node's methods
+*Added a new gametick timer to handle game logic
+*Added spawning system (non-neutral nodes now generate units)
+*Fights now use their own timer
+*Added numbers to indicate the amount of units each team has on a node
+*Increases spacing between nodes to fit text
+*Added basic capturing system (captures are currently instant)
+*Nodes start with a small amount of random units.
+
+2/17/17:
+*Added the Team array, lists colors of teams that are in the game
+*Viewport now only draws objects that are inside or near the viewport
+*Added support for units: units can now be added to a node, and can be drawn.
+-Partially implemented combat system: units will now fight (currently linked to graphics drawing);
+*Partially implemented selection system: click on a node to select it.
+
+2/16/17:
+*Added level variable to nodes, size is now based on level
+*Moved drawing method to a seperate method
+
+2/14/17:
+*Added scrolling to the viewport through arrow keys
+*Added mouse support (note: mouse support does not handle differing page dimensions)
+*Implemented a Position class to handle object positioning
+
+2/13/17:
+*Added system to generate a large random map
+*Partially implemented a scrollable viewport
