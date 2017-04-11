@@ -1,1 +1,119 @@
-<h1>Test</h1>
+<html>
+<head>
+<title>Spheres.io</title>
+<style>
+body 
+{
+	background-color:gray;
+	margin: 0px;
+	padding: 0px;
+}
+h1 
+{
+	margin-bottom: 10px;
+}
+ol 
+{
+	margin-top: -20px;
+	margin-left: -0.8em;
+}
+h3, ul 
+{
+	text-align: left;
+}
+#title 
+{
+	border: thin solid red;
+	border-radius: 25px;
+	background-color: gray;
+	text-align: center;
+	position: absolute;
+	z-index: 1;
+	top: 25%;
+	left: 25%;
+	width: 50%;
+	height: 50%;
+}
+#nameBox 
+{
+	margin-bottom: 10px;
+}
+#leaderboard 
+{
+	color: white;
+	text-align: center;
+	overflow:hidden;
+	position: absolute;
+	z-index: 1;
+	top: 0%;
+	right: 0%;
+	width: 12em;
+	height: 15em;
+}
+#game 
+{
+	position: relative;
+	top: 0;
+	left: 0;
+}
+#viewport
+{
+	background-color:black;
+	height: 100%;
+	width: 100%;
+}
+</style>
+</head>
+
+<body>
+
+
+<div id = "game">
+	<canvas id="viewport" width="1280" height="918">
+	<script src="Spheres.js"></script>
+</div>
+
+<div id = "title">
+	<h1>Spheres.io</h1>
+	<input type="textbox" id = "nameBox" value = "" maxlength = "15"> <br>
+	<input type="button" value = "Play" onclick = "initialize(); player.spawn()"></input>
+	<input type="button" value = "Spectate" onclick = "initialize();"></input>
+	<!--
+	<input type="button" value = "How to play" onclick = "document.getElementById('howToPlay').style.visibility = 'visible'"></input>
+	<input type="button" value = "Settings" onclick = "document.getElementById('settings').style.visibility = 'visible'"></input>
+	-->
+	<div id = "howToPlay">
+		<h3> How to Play: </h3> 
+		<ul>
+		<li>Your objective is to capture as many nodes on the map as possible.</li>
+		<li>Move the camera using WASD, or by dragging the screen with the mouse.</li>
+		<li>Left-click on a node to select it, drag your mouse across multiple nodes to select them all.</li>
+		<li>Release your mouse on a target to send half of your units from all selected nodes to the target.</li>
+		<li>Double-click on a target to send all of your units from the selected nodes.</li>
+		<li>Your units will automatically attack enemy units. If they eliminate all enemies on a node, they will begin to capture it.</li>
+		<li>Captured nodes spawn more units and increase your unit capacity.</li>
+		</ul>
+	</div>
+	<div id = "settings">
+		<!-- Insert settings customization here -->
+	</div>
+</div>
+
+<div id = "leaderboard">
+<h2>Leaderboard</h2>
+<ol>
+<li id = "1"></li>
+<li id = "2"></li>
+<li id = "3"></li>
+<li id = "4"></li>
+<li id = "5"></li>
+<li id = "6"></li>
+<li id = "7"></li>
+<li id = "8"></li>
+<li id = "9"></li>
+<li id = "10"></li>
+</ol>
+</div>
+
+</body>
+</html>
