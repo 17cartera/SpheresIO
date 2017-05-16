@@ -657,7 +657,6 @@ function LeaderBoard()
 //get the leaders
 LeaderBoard.prototype.getLeaders = function() 
 {
-	console.log(teams);
 	let allTeams = teams.slice(1);
 	allTeams.sort(function (a,b) //sort by unit capacity (develop a scoring system later?)
 	{
@@ -670,7 +669,6 @@ LeaderBoard.prototype.getLeaders = function()
 //update the leaderboard
 LeaderBoard.prototype.updateBoard = function() 
 {
-	console.log(this.top10);
 	for (let index = 1; index <= 10; index++)
 	{
 		let element = document.getElementById(index); let team = this.top10[index-1];
