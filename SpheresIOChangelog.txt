@@ -12,6 +12,9 @@
 
 Pre-Alpha:
 
+5/16/17:
+*Removed zoom level system, units are no longer drawn at high zoom levels
+
 3/24/17:
 *Added leaderboard
 *Added player naming system
