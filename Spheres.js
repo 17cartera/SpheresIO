@@ -473,7 +473,7 @@ MovingGroup.prototype.drawObject = function(viewport)
 		let distance = (16)*(1+Math.random());
 		let unitx = this.pos.x-viewport.x+(Math.cos(angle)*distance);
 		let unity = this.pos.y-viewport.y+(Math.sin(angle)*distance);			
-		draw.fillRect(unitx-1,unity-1,2,2);
+		draw.fillRect(unitx-2,unity-2,4,4);
 	}
 	draw.fillText(this.number,this.pos.x-viewport.x-fontSize/2,this.pos.y-viewport.y+fontSize/4);
 }
