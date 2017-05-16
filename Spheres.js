@@ -225,13 +225,15 @@ Node.prototype.drawObject = function(viewport)
 		let group = this.units[index];
 		group.updateUnitMap();
 		draw.fillStyle = teams[group.team].color;
-		let zoomRegion = Math.floor(graphics.zoomLevel); //draw less units at high zoom, but increase size
-		for (let index = 0; index < group.unitMap.length; index += zoomRegion) 
+		if graphics.zoomLevel < 2.5 //do not draw at high zoom level
 		{
-			let unitPos = group.unitMap[index];
-			let unitx = this.pos.x-viewport.x+(Math.cos(unitPos.angle)*this.size*unitPos.distance);
-			let unity = this.pos.y-viewport.y+(Math.sin(unitPos.angle)*this.size*unitPos.distance);
-			draw.fillRect(unitx-1+zoomRegion,unity-1+zoomRegion,2+2*zoomRegion,2+2*zoomRegion);
+			for (let index = 0; index < group.unitMap.length; index += 1) 
+			{
+				let unitPos = group.unitMap[index];
+				let unitx = this.pos.x-viewport.x+(Math.cos(unitPos.angle)*this.size*unitPos.distance);
+				let unity = this.pos.y-viewport.y+(Math.sin(unitPos.angle)*this.size*unitPos.distance);
+				draw.fillRect(unitx-1,unity-1,2,2);
+			}
 		}
 		let textDistance = this.size*2;
 		draw.fillText(group.number,
