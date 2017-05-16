@@ -469,7 +469,7 @@ MovingGroup.prototype.drawObject = function(viewport)
 	draw.fillStyle = teams[this.team].color;
 	if (graphics.zoomRegion < 2.5)
 	{
-	for (let unitindex = 0; unitindex < this.number; unitindex += 1) 
+		for (let unitindex = 0; unitindex < this.number; unitindex += 1) 
 		{
 			let angle = Math.random()*2*Math.PI;
 			let distance = (20+this.number/10)*(1+Math.random());
