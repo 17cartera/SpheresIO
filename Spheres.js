@@ -467,16 +467,15 @@ MovingGroup.prototype.drawObject = function(viewport)
 {
 	//draws a cloud of units
 	draw.fillStyle = teams[this.team].color;
-	let zoomRegion = Math.floor(graphics.zoomLevel);
 	for (let unitindex = 0; unitindex < this.number; unitindex += zoomRegion) 
 	{
 		let angle = Math.random()*2*Math.PI;
-		let distance = (16+4*zoomRegion)*(1+Math.random());
+		let distance = (16)*(1+Math.random());
 		let unitx = this.pos.x-viewport.x+(Math.cos(angle)*distance);
 		let unity = this.pos.y-viewport.y+(Math.sin(angle)*distance);			
-		draw.fillRect(unitx-1+zoomRegion,unity-1+zoomRegion,2+2*zoomRegion,2+2*zoomRegion);
+		draw.fillRect(unitx-1,unity-1,2,2);
 	}
-	draw.fillText(this.number,this.pos.x-viewport.x-8*zoomRegion,this.pos.y-viewport.y+4*zoomRegion);
+	draw.fillText(this.number,this.pos.x-viewport.x-fontSize/2,this.pos.y-viewport.y+fontSize/4);
 }
 //moves the group towards its destination
 MovingGroup.prototype.move = function(dis) 
