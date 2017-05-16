@@ -472,7 +472,7 @@ MovingGroup.prototype.drawObject = function(viewport)
 	for (let unitindex = 0; unitindex < this.number; unitindex += 1) 
 		{
 			let angle = Math.random()*2*Math.PI;
-			let distance = (24)*(1+Math.random());
+			let distance = (20+this.number/10)*(1+Math.random());
 			let unitx = this.pos.x-viewport.x+(Math.cos(angle)*distance);
 			let unity = this.pos.y-viewport.y+(Math.sin(angle)*distance);			
 			draw.fillRect(unitx-2,unity-2,4,4);
