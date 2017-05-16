@@ -225,7 +225,7 @@ Node.prototype.drawObject = function(viewport)
 		let group = this.units[index];
 		group.updateUnitMap();
 		draw.fillStyle = teams[group.team].color;
-		if graphics.zoomLevel < 2.5 //do not draw at high zoom level
+		if (graphics.zoomLevel < 2.5) //do not draw at high zoom level
 		{
 			for (let index = 0; index < group.unitMap.length; index += 1) 
 			{
