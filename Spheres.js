@@ -467,7 +467,7 @@ MovingGroup.prototype.drawObject = function(viewport)
 {
 	//draws a cloud of units
 	draw.fillStyle = teams[this.team].color;
-	if (graphics.zoomRegion < 2.5)
+	if (graphics.zoomLevel < 2.5)
 	{
 		for (let unitindex = 0; unitindex < this.number; unitindex += 1) 
 		{
