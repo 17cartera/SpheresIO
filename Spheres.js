@@ -467,7 +467,7 @@ MovingGroup.prototype.drawObject = function(viewport)
 {
 	//draws a cloud of units
 	draw.fillStyle = teams[this.team].color;
-	for (let unitindex = 0; unitindex < this.number; unitindex += zoomRegion) 
+	for (let unitindex = 0; unitindex < this.number; unitindex += 1) 
 	{
 		let angle = Math.random()*2*Math.PI;
 		let distance = (16)*(1+Math.random());
