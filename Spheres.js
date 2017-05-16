@@ -232,7 +232,7 @@ Node.prototype.drawObject = function(viewport)
 				let unitPos = group.unitMap[index];
 				let unitx = this.pos.x-viewport.x+(Math.cos(unitPos.angle)*this.size*unitPos.distance);
 				let unity = this.pos.y-viewport.y+(Math.sin(unitPos.angle)*this.size*unitPos.distance);
-				draw.fillRect(unitx-1,unity-1,2,2);
+				draw.fillRect(unitx-2,unity-2,4,4);
 			}
 		}
 		let textDistance = this.size*2;
