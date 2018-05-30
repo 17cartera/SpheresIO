@@ -10,6 +10,15 @@
 *Add balancing
 *Special nodes
 
+Alpha:
+
+5/22/18:
+*Client can now download the map from the server
+*Removed drawing of units for now
+
+5/21/18:
+*Began development of netcode
+
 Pre-Alpha:
 
 5/16/17:
