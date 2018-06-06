@@ -8,10 +8,10 @@ var UNITS_PER_LEVEL = 5; //population capacity granted for each level
 var FIGHT_TIME = 0.8; //amount of time between each round of fight with 10 units
 var FIGHT_SPAWN_MULTIPLIER = 2; //multiplier to spawning times while a node is in combat
 var MOVE_SPEED = 500; //number of pixels moved in a second
-var MAP_SIZE = 1000//10000 //height and width of the map
-var MIN_NODES_TO_GENERATE = 8//500; //minimum amount of nodes generated
-var MAX_NODES_TO_GENERATE = 12//750; //maximum amount of nodes generated
-var TEAMS_TO_GENERATE = 0//5; //amount of AI teams to generate at the start of the game
+var MAP_SIZE = 10000 //height and width of the map
+var MIN_NODES_TO_GENERATE = 500; //minimum amount of nodes generated
+var MAX_NODES_TO_GENERATE = 750; //maximum amount of nodes generated
+var TEAMS_TO_GENERATE = 5; //amount of AI teams to generate at the start of the game
 var MAX_RANGE = 1000; //maximum range of a movingUnit group
 var HASH_SIZE = MAX_RANGE/2; //size of each hash grid
 var fontSize = 16; //base font size
@@ -22,7 +22,7 @@ var gameBoard; var graphics; var leaderBoard; //controller objects
 var gameMap = new GameMap(); //an array of all nodes
 var movingUnits = []; //an array of all MovingUnit groups
 var teams = []; //a list of all teams
-var playerNameIndex = undefined; //the index of the player's team
+var players = []; //lists the playerController for all non-bot players
 //event listener
 //var player;
 //initialization block
@@ -317,6 +317,8 @@ Node.prototype.addUnits = function(team,number)
 		this.units.push(new Units(team,number));
 		teams[team].controller.addOccupiedNode(this);
 	}
+	let packet = {type:"units",node:this.id,team:team,number:number}
+	addPacket(packet)
 }
 //spawns a unit at this node if conditions are right 
 Node.prototype.spawn = function() 
@@ -387,11 +389,12 @@ Node.prototype.capture = function()
 			this.capturing = true;
 		}
 	}
-	if (this.capturing) 
-	{	
+	if (this.capturing)
+	{
 		let delay = (CAPTURE_TIME*100*this.level)/this.units[0].number;
 		setTimeout(function(_this){_this.capture();},delay,this);
 	}
+	addPacket({type:"assault",node:this.id,points:this.capturePoints,team:this.captureTeam})
 }
 //method to properly change the team of a node
 Node.prototype.changeTeam = function(newTeam) 
@@ -401,6 +404,7 @@ Node.prototype.changeTeam = function(newTeam)
 	this.team = newTeam;
 	if (newTeam != 0) {} //team 0 does not have a controller
 	teams[this.team].controller.addOccupiedNode(this);
+	addPacket({type:"capture",node:this.id,team:newTeam})
 }
 //combat mechanics system (ported from BattleFunction program)
 Node.prototype.fight = function()
@@ -433,13 +437,16 @@ Node.prototype.fight = function()
 	{
 		if (x != index)
 		{
-			unitNums[x].number--;
+			this.addUnits(unitNums[x].team,-1)
+			//unitNums[x].number--;
 			//if index is zero, remove it
+			/*
 			if (unitNums[x].number <= 0) 
 			{
 				teams[unitNums[x].team].controller.removeOccupiedNode(this);
 				unitNums.splice(x,1);
 			}
+			*/
 		}
 	}
 	//continue fighting if a fight is still needed 
@@ -724,6 +731,7 @@ Controller.prototype.moveUnits = function(startNode,endNode,unitsTransferred)
 		startNode.addUnits(this.team,-unitsTransferred);
 		let moveGroup = new MovingGroup(this.team,unitsTransferred,startNode,endNode);
 		movingUnits.push(moveGroup);
+		addPacket({type:"move",team:this.team,number:unitsTransferred,node:startNode.id,otherNode:endNode.id})
 		return moveGroup;
 	}
 }
@@ -1141,10 +1149,11 @@ PlayerController.prototype.constructor = PlayerController;
 function PlayerController(team,client) 
 {
 	Controller.call(this,team);
-	this.client = client
+	this.client = client //connection data for this client
+	this.packets = []; //data packets to send to the client
 	//set up to transfer data to the client
-	this.transferData()
-	setInterval(function(_this){_this.transferData();},10,this); //send data to client
+	this.transferAllData()
+	setInterval(function(_this){_this.sendPackets();},10,this); //send data to client
 	//set up to receive data from the client
 	this.client.player = this
 	this.client.spawn = function(data)
@@ -1180,12 +1189,12 @@ function PlayerController(team,client)
 	canvas.onmouseout = function(e) {self.selecting = false; self.dragMode = false;}; //resets modes if mouse exits game
 	*/
 }
-//transfer data to a client
-PlayerController.prototype.transferData = function()
+//transfer all map data to the client
+PlayerController.prototype.transferAllData = function()
 {
 	//transmit teams
 	let teamData = []
-	for (let t in teams) //avoid transmitting the controller object due to recursive calls
+	for (let t in teams) //avoid transmitting the controller object due to circular reference with client object
 	{
 		let team = teams[t]
 		teamData.push({color:team.color,name:team.name})
@@ -1196,12 +1205,27 @@ PlayerController.prototype.transferData = function()
 	//transmit moving units
 	this.client.emit("groups",movingUnits)
 }
+//send information packets to the client
+PlayerController.prototype.sendPackets = function()
+{	
+	//transmit teams (temp code)
+	let teamData = []
+	for (let t in teams) //avoid transmitting the controller object due to circular reference with client object
+	{
+		let team = teams[t]
+		teamData.push({color:team.color,name:team.name})
+	}
+	this.client.emit("teams",teamData)
+	this.client.emit("data",this.packets)
+	this.packets = []
+	//this.client.emit("groups",movingUnits)
+}
 //initiate the spawning process
 PlayerController.prototype.spawn = function(name)
 {
 	this.team = teams.length;
 	let spawnPoint = gameBoard.spawnNewPlayer(this,name);
-	this.client.emit("spawnsuccess",this.team)
+	this.client.emit("spawnsuccess",{team:this.team,spawnPoint:spawnPoint})
 	//graphics.x = spawnPoint.pos.x-(graphics.width/2);
 	//graphics.y = spawnPoint.pos.y-(graphics.height/2);
 }
@@ -1261,7 +1285,7 @@ io.on('connection', function(client)
 	{
         //console.log(client);
 		//create a new player controller
-		new PlayerController(0,client)
+		players.push(new PlayerController(0,client))
 		//client.emit("teams",teams)
 		//client.emit("map",gameMap.allObjects)
     });
@@ -1270,3 +1294,12 @@ io.on('connection', function(client)
 //load up the server
 initialize();
 server.listen(3000)
+
+//adds the given data packet to all player objects
+function addPacket(data)
+{
+	for (let p in players)
+	{
+		players[p].packets.push(data)
+	}
+}

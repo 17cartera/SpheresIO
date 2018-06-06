@@ -1,8 +1,8 @@
 
 -Known Bugs/issues:
 *Random colors can be too identical to each other
-*Double-clicking causes errors with nodes out of range
-*Capturing can sometimes break, and removing capture points is sometimes slower than adding them
+*Double-clicking is nonfunctional
+*Graphics are incredibly unoptimized
 
 -Todo list: 
 *Improve controls and UI
@@ -11,6 +11,17 @@
 *Special nodes
 
 Alpha:
+
+6/5/18:
+*Implemented a new packet-based client-server communication system, for great optimization.
+*When the player spawns in, their viewpoint is centered on their spawn location.
+*Fixed a long-standing graphics bug where graphics required scrolling to properly be aligned.
+*Refactored fight code to use the addUnits() method
+*Attempted to optimize graphics system
+
+5/29/18:
+*Established basic communication between client and server
+*Multiplayer-capable, but needs optimization.
 
 5/22/18:
 *Client can now download the map from the server

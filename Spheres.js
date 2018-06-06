@@ -8,7 +8,7 @@
 	var FIGHT_TIME = 0.8; //amount of time between each round of fight with 10 units
 	var FIGHT_SPAWN_MULTIPLIER = 2; //multiplier to spawning times while a node is in combat
 	var MOVE_SPEED = 500; //number of pixels moved in a second
-	var MAP_SIZE = 1000//10000 //height and width of the map
+	var MAP_SIZE = 10000//10000 //height and width of the map
 	var MIN_NODES_TO_GENERATE = 8//500; //minimum amount of nodes generated
 	var MAX_NODES_TO_GENERATE = 12//750; //maximum amount of nodes generated
 	var TEAMS_TO_GENERATE = 0//5; //amount of AI teams to generate at the start of the game
@@ -41,18 +41,19 @@ var initialize = function()
 	});
 	socket.on('teams', function(data)
 	{
-		//console.log(data)
 		updateTeams(data)
 	});
 	socket.on('map', function(data) 
 	{
-		//console.log(data)
 		updateGameMap(data)
 	});
 	socket.on('groups',function(data)
 	{
-		//console.log(data)
 		updateMovingGroups(data)
+	});
+	socket.on('data',function(data)
+	{
+		processPackets(data)
 	});
 	socket.on('spawnsuccess',function(data)
 	{
@@ -617,11 +618,14 @@ function ViewPort(x,y,width,height)
 	this.zoomLevel = 1;
 	this.AItargets = [];
 	let self = this;
+	this.handleResize() //adjust the screen initially
 	window.onresize = function(e) {self.handleResize(e);};
 	window.onwheel = function(e) {self.zoom(e);};
-	setInterval(function(_this){_this.drawAllInside();},20,this);
+	requestAnimationFrame(drawMain)
+	//setInterval(function(_this){_this.drawAllInside();},17,this);
 }
 //draws everything inside the viewport (could be optimized)
+/*
 ViewPort.prototype.drawAllInside = function() 
 {
 	//set font size
@@ -652,6 +656,42 @@ ViewPort.prototype.drawAllInside = function()
 	draw.fillStyle = "rgb(255,255,255)";
 	draw.lineWidth = 1;
 	draw.fillText(player.getTotalUnits() + " / " + player.unitCapacity,this.width/2,30*this.zoomLevel);
+	requestAnimationFrame(this.drawAllInside)
+}
+*/
+function drawMain()
+{
+	//set font size
+	draw.font = "" + (fontSize) + "px" + " sans-serif";
+	//clear screen
+	draw.clearRect(0,0,canvas.width,canvas.height);
+	//draw the border
+	draw.strokeStyle = "rgb(255,255,255)";
+	draw.lineWidth = 8;
+	draw.strokeRect(0-graphics.x,0-graphics.y,MAP_SIZE,MAP_SIZE);
+	//draw moving groups
+	for (let index in movingUnits) 
+	{
+		let group = movingUnits[index];
+		//only draw if the object is near the viewport
+		if (group.pos.x+100 >= graphics.x && group.pos.y+100 >= graphics.y && group.pos.x-100 <= graphics.x+graphics.width && group.pos.y-100 <= graphics.y+graphics.height)
+			group.drawObject(graphics);
+	}
+	//draw nodes
+	for (let index in gameMap.allObjects) 
+	{
+		let node = gameMap.allObjects[index];
+		//only draw if the object is near the viewport
+		if (node.pos.x+100 >= graphics.x && node.pos.y+100 >= graphics.y && node.pos.x-100 <= graphics.x+graphics.width && node.pos.y-100 <= graphics.y+graphics.height)
+			node.drawObject(graphics);
+	}
+	//draw UI (currently just the unit indicator)
+	/*
+	draw.fillStyle = "rgb(255,255,255)";
+	draw.lineWidth = 1;
+	draw.fillText(player.getTotalUnits() + " / " + player.unitCapacity,graphics.width/2,30*graphics.zoomLevel);
+	*/
+	requestAnimationFrame(drawMain)
 }
 //changes the viewport when the screen changes
 ViewPort.prototype.handleResize = function(e) 
@@ -988,7 +1028,6 @@ PlayerController.prototype.spawn = function(e)
 //adds a selected node, avoiding duplicates
 PlayerController.prototype.addSelectedNode = function(node) 
 {
-	console.log(this.selectedNodes)
 	let isDuplicate = false;
 	for (let index in this.selectedNodes) 
 	{
@@ -1171,7 +1210,17 @@ PlayerController.prototype.getDoubleClick = function(e)
 //call initialization method at end of code so that all methods are loaded first
 //}
 
-
+//get an object by ID
+function getObjectById(id) //returns the object with the given ID, or undefined if none is present
+{
+	for (let n in gameMap.allObjects)
+	{
+		let object = gameMap.allObjects[n]
+		if (id == object.id)
+			return object;
+	}
+	return undefined
+}
 //new netcode functions
 function updateTeams(data)
 {
@@ -1197,18 +1246,6 @@ function updateGameMap(data)
 	for (let n in data) 
 	{
 		let entry = data[n];
-		/*
-		let tempNode = new Node(entry.pos,entry.level);
-		for (let u in entry.units)
-		{
-			let group = entry.units[u];
-			tempNode.addUnits(group.team,group.number)
-		}
-		tempNode.id = entry.id
-		tempNode.team = entry.team
-		tempNode.capturePoints = entry.capturePoints
-		tempNode.captureTeam = entry.captureTeam
-		*/
 		//test to see if a duplicate is detected
 		let duplicate = undefined
 		for (let n in gameMap.allObjects)
@@ -1279,6 +1316,31 @@ function updateMovingGroups(data)
 			movingUnits.push(newGroup)
 	}
 }
+function processPackets(data)
+{
+	for (let n in data)
+	{
+		let entry = data[n]			
+		let node = getObjectById(entry.node)
+		switch (entry.type)
+		{
+			case "units": //units are added or removed from the node
+			node.addUnits(entry.team,entry.number)
+			break;
+			case "assault": //the node is under attack
+			node.capturePoints = entry.points
+			node.captureTeam = entry.team
+			break;
+			case "capture": //the node has changed teams
+			node.team = entry.team
+			break;
+			case "move": //a moving group is being generated
+			let newGroup = new MovingGroup(entry.team,entry.number,node,getObjectById(entry.otherNode))
+			movingUnits.push(newGroup)
+			break;
+		}
+	}
+}
 function sendSpawnPlayer(name)
 {
 	console.log(name)
@@ -1288,5 +1350,7 @@ function sendSpawnPlayer(name)
 function completeSpawn(data)
 {
 	console.log("Completing Spawn")
-	player.team = data
+	player.team = data.team
+	graphics.x = data.spawnPoint.pos.x-(graphics.width/2);
+	graphics.y = data.spawnPoint.pos.y-(graphics.height/2);
 }
