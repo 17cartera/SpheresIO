@@ -12,6 +12,17 @@
 
 Alpha:
 
+6/7/18:
+*Reduced move speed by 50% to increase importance of positioning
+*Removed level 1 nodes, all nodes are now level 2-10
+*Increased unit cap by 50 for all teams
+*Removed commented-out code blocks
+*Implemented client-side unit cap and leaderboard
+*Optimized detection of which objects to draw on screen
+*Improved text centering
+*The name of the controlling team (unless neutral) is shown above each node
+*Reimplemented drawing units on nodes
+
 6/5/18:
 *Implemented a new packet-based client-server communication system, for great optimization.
 *When the player spawns in, their viewpoint is centered on their spawn location.

@@ -2,11 +2,15 @@
 <head>
 <title>Spheres.io</title>
 <style>
+
+* 
+{
+	margin: 0px;
+	padding: 0px;
+}
 body 
 {
 	background-color:gray;
-	margin: 0px;
-	padding: 0px;
 }
 h1 
 {
@@ -14,8 +18,10 @@ h1
 }
 ol 
 {
-	margin-top: -20px;
-	margin-left: -0.8em;
+	margin-top: 0px;
+	margin-left: 0px;
+	list-style-type:decimal;
+	list-style-position:inside;
 }
 h3, ul 
 {
@@ -38,7 +44,7 @@ h3, ul
 {
 	margin-bottom: 10px;
 }
-#leaderboard 
+#popCounter 
 {
 	color: white;
 	text-align: center;
@@ -46,9 +52,21 @@ h3, ul
 	position: absolute;
 	z-index: 1;
 	top: 0%;
+	left: 45%;
+	width: 10%;
+	height: 1.5em;
+}
+#leaderboard 
+{
+	color: white;
+	text-align: left;
+	overflow:hidden;
+	position: absolute;
+	z-index: 1;
+	top: 0%;
 	right: 0%;
 	width: 12em;
-	height: 15em;
+	height: 18em;
 }
 #game 
 {
@@ -61,6 +79,8 @@ h3, ul
 	background-color:black;
 	height: 100%;
 	width: 100%;
+	margin: 0;
+	padding: 0;
 }
 </style>
 </head>
@@ -69,10 +89,7 @@ h3, ul
 
 <script src="/socket.io/socket.io.js"></script>
 
-<div id = "game">
-	<canvas id="viewport" width="1280" height="918">
-	<script src="Spheres.js"></script>
-</div>
+
 
 <div id = "title">
 	<h1>Spheres.io</h1>
@@ -100,6 +117,10 @@ h3, ul
 	</div>
 </div>
 
+<div id = "popCounter">
+<p id = "pop">POP: 0/0</p>
+</div>
+
 <div id = "leaderboard">
 <h2>Leaderboard</h2>
 <ol>
@@ -114,6 +135,11 @@ h3, ul
 <li id = "9"></li>
 <li id = "10"></li>
 </ol>
+</div>
+
+<div id = "game">
+		<canvas id="viewport" width="1280" height="918">
+		<script src="Spheres.js"></script>
 </div>
 
 </body>
