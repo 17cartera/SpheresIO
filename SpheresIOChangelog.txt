@@ -1,16 +1,48 @@
 
 -Known Bugs/issues:
+*Rarely, nodes can become stuck as neutral
 *Random colors can be too identical to each other
 *Double-clicking is nonfunctional
-*Graphics are incredibly unoptimized
+*Client lag can result in moving groups appearing in an incorrect position
 
 -Todo list: 
 *Improve controls and UI
--Add click-and-drag selection
-*Add balancing
+*Optimization
+--Use a better list structure for faster ID searching?
+*Balancing?
 *Special nodes
 
+-Ideas:
+*Calculate leaderboard server-side (increased bandwidth cost, but less client computation needed?)
+*Move all units on a single timer (reduces the truly excessive use of setTimeout)
+
 Alpha:
+
+7/30/18:
+*Node rebalance: Max level reduced from 10 to 5, power scaling retained
+--Nodes should now be a bit more distinct
+*Nerfed bots for first beta test
+
+7/13/18:
+*Added alternate config for a smaller map (ideal for lower player counts)
+*Fixed a bug where decapturing a node (i.e. interrupting an opposing capture) did not properly render to the client
+*Randomized AI reaction power
+
+6/13/18:
+*Added a unit slider, allowing players to pick a percentage of units to send on each move order
+
+6/10/18:
+*Implemented box selection
+*Scaled down everything to increase base zoom level and optimize client
+--Reduced node density
+
+6/9/18:
+*Implemented Attrition mechanics, replacing previous max range mechanics
+*Added WASD detection
+
+6/8/18:
+*Fixed a bug where the player did not properly remove the enemy units from the node that they spawned on
+*Allowed players to be spawned on a non-neutral node if no neutral nodes are available
 
 6/7/18:
 *Reduced move speed by 50% to increase importance of positioning
@@ -21,7 +53,7 @@ Alpha:
 *Optimized detection of which objects to draw on screen
 *Improved text centering
 *The name of the controlling team (unless neutral) is shown above each node
-*Reimplemented drawing units on nodes
+*Reimplemented drawing units on nodes, removed randomness in this process
 
 6/5/18:
 *Implemented a new packet-based client-server communication system, for great optimization.

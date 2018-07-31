@@ -1,21 +1,7 @@
 "use strict"
 //spheres IO server code
 //global variables
-//{ CONSTANTS
-var CAPTURE_TIME = 3; //number of seconds it takes 10 units to capture a level 1 node
-var SPAWN_TIME = 5; //number of seconds it takes for a level 1 node to spawn a unit
-var UNITS_PER_LEVEL = 5; //population capacity granted for each level
-var FIGHT_TIME = 0.8; //amount of time between each round of fight with 10 units
-var FIGHT_SPAWN_MULTIPLIER = 2; //multiplier to spawning times while a node is in combat
-var MOVE_SPEED = 250; //number of pixels moved in a second
-var MAP_SIZE = 10000 //height and width of the map
-var MIN_NODES_TO_GENERATE = 500; //minimum amount of nodes generated
-var MAX_NODES_TO_GENERATE = 750; //maximum amount of nodes generated
-var TEAMS_TO_GENERATE = 5; //amount of AI teams to generate at the start of the game
-var MAX_RANGE = 1000; //maximum range of a movingUnit group
-var HASH_SIZE = MAX_RANGE/2; //size of each hash grid
-var fontSize = 16; //base font size
-//}
+require("./consts.js")(global)
 var gameBoard; var graphics; var leaderBoard; //controller objects
 //var canvas = document.getElementById("viewport"); //the canvas used for the main board
 //var draw = canvas.getContext("2d"); //the drawing context used for draw actions
@@ -58,7 +44,7 @@ GameController.prototype.generateMap = function(height,width)
 	//adds nodes only where there is empty space available;
 	while (n < generatedNodes) 
 	{
-		let tempNode = new Node(new Position(Math.random()*height,Math.random()*width),2+Math.floor(Math.random()*9));
+		let tempNode = new Node(new Position(Math.random()*height,Math.random()*width),1+Math.floor(Math.random()*5));
 		//determine if there is sufficient space between this node and all other nodes
 		let isClear = true;
 		let potentialObstructions = gameMap.checkAllInRange(tempNode.pos,250);
@@ -91,12 +77,22 @@ GameController.prototype.spawnNewPlayer = function(controller,name)
 	teams.push(team);
 	let isValidLocationFound = false;
 	let node;
-	while (!isValidLocationFound) 
+	let counter = 0;
+	while (!isValidLocationFound) //ensure that the location is neutral
 	{
+		counter++;
 		let index = Math.floor(Math.random()*gameMap.allObjects.length);
 		node = gameMap.allObjects[index];
 		if (node.team == 0) 
 		{
+			isValidLocationFound = true;
+			node.units = [];
+			node.changeTeam(teamIndex);
+			node.addUnits(teamIndex,100);
+		}
+		else if (counter > 10000) //force a spawn over a player's node
+		{
+			console.log("No neutral nodes, forced to overspawn player")
 			isValidLocationFound = true;
 			node.units = [];
 			node.changeTeam(teamIndex);
@@ -207,7 +203,7 @@ function Node(position,level)
 	this.id = generateNodeID(); //unique ID of this node
 	this.pos = position; //position of the node
 	this.level = level; //level of the node, influences capture speed and unit production
-	this.size = 25+5*level; //size of the node is based on level
+	this.size = (20+10*level)*SIZE_SCALE; //size of the node is based on level
 	this.team = 0; //nodes are created neutral by default
 	this.units = []; //a listing of all unit groups that are on this node
 	this.selected = false; //whether the user has selected this node
@@ -301,6 +297,7 @@ Node.prototype.capture = function()
 		{
 			this.capturePoints -= 2; //recaptures at twice the rate
 		}
+		addPacket({type:"assault",node:this.id,points:this.capturePoints,team:this.captureTeam}) //update the capture points on the node
 		return;
 	}
 	this.captureTeam = this.units[0].team;
@@ -418,8 +415,7 @@ function MovingGroup(team,number,startNode,endNode)
 	this.endNode = endNode;
 	this.pos = new Position(startNode.pos.x,startNode.pos.y);
 	this.direction = Position.getDirection(this.startNode.pos,this.endNode.pos);
-	//this.move(this.startNode.size); //start moving when spawned
-	setTimeout(function(_this){_this.move(_this.startNode.size);},250,this);
+	setTimeout(function(_this){_this.move(_this.startNode.size);},250,this); //move after a short delay for lag compensation
 }
 //moves the group towards its destination
 MovingGroup.prototype.move = function(dis) 
@@ -440,8 +436,43 @@ MovingGroup.prototype.move = function(dis)
 	}
 	else 
 	{
+		//check for attrition
+		this.checkForAttrition()
 		//set a timer for the next move
 		setTimeout(function(_this){_this.move(MOVE_SPEED/50);},20,this);
+	}
+}
+//checks for attrition
+MovingGroup.prototype.checkForAttrition = function()
+{
+	let friendlyNodes = teams[this.team].controller.occupiedNodes
+	let nearFriendly = false;
+	for (let n in friendlyNodes)
+	{
+		let node = friendlyNodes[n]
+		if (Position.getDistance(this.pos,node.pos) < CONTROL_RANGE)
+		{
+			nearFriendly = true;
+		}
+	}
+	if (!nearFriendly) //trigger attrition
+	{
+		//note: formula is currently inaccurate
+		//percentage of attrition per tick: (MOVE_SPEED/50)/ATRIT_RATE
+		let atritChance = (MOVE_SPEED/50)/ATRIT_RATE;
+		let losses = 0;
+		for (let x = 0; x < this.number; x++)
+		{
+			if (Math.random() < atritChance)
+			{
+				losses++;
+			}
+		}
+		if (losses > 0)
+		{
+			this.number -= losses;
+			addPacket({type:"groupLoss",id:this.id,number:losses})
+		}
 	}
 }
 //a simple position object, used for certain inherited methods
@@ -547,12 +578,12 @@ function Controller(team)
 //creates a moving group between the target node and the other node
 Controller.prototype.moveUnits = function(startNode,endNode,unitsTransferred)
 {
-	if (unitsTransferred != 0 && Position.getDistance(startNode.pos,endNode.pos) <= 1000 && startNode != endNode) //extra checking of conditions
+	if (unitsTransferred != 0/* && Position.getDistance(startNode.pos,endNode.pos) <= MAX_RANGE */&& startNode != endNode) //extra checking of conditions
 	{
 		startNode.addUnits(this.team,-unitsTransferred);
 		let moveGroup = new MovingGroup(this.team,unitsTransferred,startNode,endNode);
 		movingUnits.push(moveGroup);
-		addPacket({type:"move",team:this.team,number:unitsTransferred,node:startNode.id,otherNode:endNode.id})
+		addPacket({type:"move",team:this.team,number:unitsTransferred,node:startNode.id,otherNode:endNode.id,id:moveGroup.id})
 		return moveGroup;
 	}
 }
@@ -644,7 +675,7 @@ function BotController(team)
 	this.expansionWeight = 0.5+Math.random(); //weight of expanding and gaining territory
 	this.attackWeight = 0.5+Math.random(); //weight of attacking and eliminating other players
 	this.defenseWeight = 0.5+Math.random(); //weight of protecting nodes and units
-	this.reaction = 0.01; //chance of the AI acting every AI tick
+	this.reaction = 0.01//0.02+Math.random()*0.08; //chance of the AI acting every AI tick
 }
 //main AI loop
 BotController.prototype.runAI = function() 
@@ -880,6 +911,10 @@ app.get('/', function(req, res,next) {
 //serve client script to client
 app.get('/spheres.js', function(req, res,next) {  
     res.sendFile(__dirname + '/spheres.js');
+});
+//server constants to client
+app.get('/consts.js', function(req, res,next) {  
+    res.sendFile(__dirname + '/consts.js');
 });
 
 //netcode?
