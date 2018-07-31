@@ -1,130 +1,58 @@
 "use strict"
-//singleplayer pulse.io code
-//global variables
-//{ CONSTANTS
-	var CAPTURE_TIME = 3; //number of seconds it takes 10 units to capture a level 1 node
-	var SPAWN_TIME = 5; //number of seconds it takes for a level 1 node to spawn a unit
-	var UNITS_PER_LEVEL = 5; //population capacity granted for each level
-	var FIGHT_TIME = 0.8; //amount of time between each round of fight with 10 units
-	var FIGHT_SPAWN_MULTIPLIER = 2; //multiplier to spawning times while a node is in combat
-	var MOVE_SPEED = 500; //number of pixels moved in a second
-	var MAP_SIZE = 10000 //height and width of the map
-	var MIN_NODES_TO_GENERATE = 500; //minimum amount of nodes generated
-	var MAX_NODES_TO_GENERATE = 750; //maximum amount of nodes generated
-	var TEAMS_TO_GENERATE = 5; //amount of AI teams to generate at the start of the game
-	var MAX_RANGE = 1000; //maximum range of a movingUnit group
-	var HASH_SIZE = MAX_RANGE/2; //size of each hash grid
-	var fontSize = 16; //base font size
-//}
+//spheres IO client code
 var gameBoard; var graphics; var leaderBoard; //controller objects
+var unitCounter = document.getElementById("popCounter") //lists the units and population limit for the player
 var canvas = document.getElementById("viewport"); //the canvas used for the main board
 var draw = canvas.getContext("2d"); //the drawing context used for draw actions
+var unitSlider = document.getElementById("unitSlider") //slider for the percentage units sent per move order
+var unitValue = document.getElementById("unitValue") //value for unitSlider
 var gameMap = new GameMap(); //an array of all nodes
 var movingUnits = []; //an array of all MovingUnit groups
 var teams = []; //a list of all teams
+//teams.push(new Team("rgb(128,128,128)",new Controller())); //neutral team
 var playerNameIndex = undefined; //the index of the player's team
 //event listener
 var player;
+//server connection
+var socket;
 //initialization block
 var initialize = function() 
 {
 	console.log("beginning game");
 	document.getElementById("title").style.visibility = "hidden";
-	gameBoard = new GameController();
+	///new netcode elements
+	socket = io.connect('http://127.0.0.1:3000');
+	socket.on('connect', function(data) 
+	{
+		socket.emit('join', 'ClientStuff');
+	});
+	socket.on('teams', function(data)
+	{
+		updateTeams(data)
+	});
+	socket.on('map', function(data) 
+	{
+		updateGameMap(data)
+	});
+	socket.on('groups',function(data)
+	{
+		updateMovingGroups(data)
+	});
+	socket.on('data',function(data)
+	{
+		processPackets(data)
+	});
+	socket.on('spawnsuccess',function(data)
+	{
+		completeSpawn(data)
+	});
+	//older stuff
+	//gameBoard = new GameController();
 	graphics = new ViewPort(0,0,window.innerWidth,window.innerHeight);
 	player = new PlayerController(undefined);
 	leaderBoard = new LeaderBoard();
 }
 
-//{ backbone game logic objects
-///logic system
-//**********
-function GameController()
-{
-	teams.push(new Team("rgb(128,128,128)",new Controller())); //neutral team
-	this.generateMap(MAP_SIZE,MAP_SIZE);
-	setInterval(gameTick,100); //ticks game updates
-	//occasionally spawn in new bots
-	setInterval(function(_this){_this.spawnNewPlayer(new BotController(teams.length),"Bot " + teams.length)},60000,this);
-}
-//generates a map
-GameController.prototype.generateMap = function(height,width) 
-{
-	let n = 0; let generatedNodes = MIN_NODES_TO_GENERATE+Math.floor(Math.random()*(MAX_NODES_TO_GENERATE-MIN_NODES_TO_GENERATE));
-	//adds nodes only where there is empty space available;
-	while (n < generatedNodes) 
-	{
-		let tempNode = new Node(new Position(Math.random()*height,Math.random()*width),1+Math.floor(Math.random()*10));
-		//determine if there is sufficient space between this node and all other nodes
-		let isClear = true;
-		let potentialObstructions = gameMap.checkAllInRange(tempNode.pos,250);
-		for (let n in potentialObstructions) 
-		{
-			if (Position.getDistance(tempNode.pos,potentialObstructions[n].pos) <= (tempNode.size+potentialObstructions[n].size)*2)
-				isClear = false;
-		}
-		//push the node
-		if (isClear)
-		{
-			tempNode.addUnits(tempNode.team,Math.floor(Math.random()*20));
-			gameMap.addObject(tempNode);
-			n++;
-		}
-	}
-	//spawns teams to populate the map with AI bots
-	let t = 1;
-	while (t <= TEAMS_TO_GENERATE) 
-	{
-		this.spawnNewPlayer(new BotController(teams.length),"Bot " + teams.length);
-		t++;
-	}
-}
-//spawns in a new player
-GameController.prototype.spawnNewPlayer = function(controller,name)
-{
-	let teamIndex = teams.length;
-	let team = new Team(generateRandomColor(),controller,name);
-	teams.push(team);
-	let isValidLocationFound = false;
-	let node;
-	while (!isValidLocationFound) 
-	{
-		let index = Math.floor(Math.random()*gameMap.allObjects.length);
-		node = gameMap.allObjects[index];
-		if (node.team == 0) 
-		{
-			isValidLocationFound = true;
-			node.units = [];
-			node.changeTeam(teamIndex);
-			node.addUnits(teamIndex,100);
-		}
-	}
-	return node;
-}
-//triggers secondary timers
-function gameTick()
-{
-	for (let index in gameMap.allObjects)
-	{
-		let node = gameMap.allObjects[index];
-		
-		//if a node has more than one team of units on it, start a battle
-		if (node.units.length > 1 && node.fighting == false) 
-		{
-			node.fight(node.units);
-		}
-		//if a node is under control by units from a different team than its own team, capture it
-		if (node.units.length == 1 && node.capturing == false && (node.units[0].team != node.team || node.capturePoints > 0)) 
-		{
-			node.capture();
-		}
-		//if a node is non-neutral, attempt to spawn
-		if (node.team != 0 && (node.getUnitsOfTeam(node.team).number != 0 || node.units.length == 0) && node.spawning == false)
-		{
-			node.spawn();
-		}
-	}
-}
 ///hash map code
 function GameMap() 
 {
@@ -192,21 +120,21 @@ GameMap.prototype.drawGrid = function()
 		}
 	}
 }
-//}
 
 //{ game objects
 //class for nodes
 function Node(position,level) 
 {
+	this.id = 0; //node ID
 	this.pos = position; //position of the node
 	this.level = level; //level of the node, influences capture speed and unit production
-	this.size = 25+5*level; //size of the node is based on level
+	this.size = (20+10*level)*SIZE_SCALE; //size of the node is based on level
 	this.team = 0; //nodes are created neutral by default
 	this.units = []; //a listing of all unit groups that are on this node
 	this.selected = false; //whether the user has selected this node
-	this.fighting = false; //whether or not the node is fighting
-	this.capturing = false; //whether or not the node is being captured
-	this.spawning = false; //whether or not the node is spawning units
+	//this.fighting = false; //whether or not the node is fighting
+	//this.capturing = false; //whether or not the node is being captured
+	//this.spawning = false; //whether or not the node is spawning units
 	this.capturePoints = 0; //percentage of base that was captured
 	this.captureTeam = undefined; //the team that is capturing the node (undefined if no team is capturing)
 }
@@ -218,6 +146,12 @@ Node.prototype.drawObject = function(viewport)
 	draw.beginPath();
 	draw.arc(this.pos.x-viewport.x,this.pos.y-viewport.y,this.size,0,2*Math.PI,false);
 	draw.fill();
+	//show player name above the node
+	if (this.team != 0)
+	{
+		let name = teams[this.team].name
+		draw.fillText(name,this.pos.x-viewport.x,this.pos.y-viewport.y-this.size*2)
+	}
 	//draw all units in orbit around the center of the node, and draw numbers to show the amounts
 	let numAngle = 0;
 	for (let index = 0; index < this.units.length; index++)
@@ -225,20 +159,21 @@ Node.prototype.drawObject = function(viewport)
 		let group = this.units[index];
 		group.updateUnitMap();
 		draw.fillStyle = teams[group.team].color;
-		if (graphics.zoomLevel < 2.5) //do not draw at high zoom level
+		if (true || graphics.zoomLevel < 2) //do not draw at high zoom level
 		{
 			for (let index = 0; index < group.unitMap.length; index += 1) 
 			{
 				let unitPos = group.unitMap[index];
 				let unitx = this.pos.x-viewport.x+(Math.cos(unitPos.angle)*this.size*unitPos.distance);
 				let unity = this.pos.y-viewport.y+(Math.sin(unitPos.angle)*this.size*unitPos.distance);
-				draw.fillRect(unitx-2,unity-2,4,4);
+				//draw.fillRect(unitx-2,unity-2,4,4); made smaller due to scale change
+				draw.fillRect(unitx-1,unity-1,2,2);
 			}
 		}
 		let textDistance = this.size*2;
 		draw.fillText(group.number,
-		this.pos.x-viewport.x-(fontSize/2)+(textDistance*Math.cos(numAngle)),
-		this.pos.y-viewport.y+(fontSize/4)+(textDistance*Math.sin(numAngle))
+		this.pos.x-viewport.x+(textDistance*Math.cos(numAngle)),
+		this.pos.y-viewport.y+(textDistance*Math.sin(numAngle))
 		);
 		numAngle += (2*Math.PI)/this.units.length;
 	}
@@ -246,15 +181,20 @@ Node.prototype.drawObject = function(viewport)
 	//if the node is selected, draw a circle around it
 	if (this.selected)
 	{
-	draw.strokeStyle = "rgba(128,128,128,.5)";
-	draw.lineWidth = 3;
-	draw.beginPath();
-	draw.arc(this.pos.x-viewport.x,this.pos.y-viewport.y,this.size*1.5,0,2*Math.PI,false);
-	draw.stroke();
-	//show the maximum range
-	draw.beginPath();
-	draw.arc(this.pos.x-viewport.x,this.pos.y-viewport.y,MAX_RANGE,0,2*Math.PI,false);
-	draw.stroke();
+		draw.strokeStyle = "rgba(128,128,128,.5)";
+		draw.lineWidth = 3;
+		draw.beginPath();
+		draw.arc(this.pos.x-viewport.x,this.pos.y-viewport.y,this.size*1.5,0,2*Math.PI,false);
+		draw.stroke();
+	}
+	//if the node is player-controlled, show the control range
+	if (this.team == player.team)
+	{
+		draw.strokeStyle = "rgba(128,128,128,.2)";
+		draw.lineWidth = 1;
+		draw.beginPath();
+		draw.arc(this.pos.x-viewport.x,this.pos.y-viewport.y,CONTROL_RANGE,0,2*Math.PI,false);
+		draw.stroke();
 	}
 	//if the node is being captured, draw the capture meter
 	if (this.capturePoints != 0) 
@@ -299,7 +239,7 @@ Node.prototype.addUnits = function(team,number)
 		if (group.team == team) 
 		{
 			group.number += number;
-			if (group.number == 0) 
+			if (group.number <= 0) 
 			{
 				this.units.splice(index,1);
 				if (this.team != group.team) teams[group.team].controller.removeOccupiedNode(this);//delete an index with no units
@@ -310,150 +250,14 @@ Node.prototype.addUnits = function(team,number)
 	if (isAdded == false && number != 0) 
 	{
 		this.units.push(new Units(team,number));
-		teams[team].controller.addOccupiedNode(this);
+		//teams[team].controller.addOccupiedNode(this);
 	}
-}
-//spawns a unit at this node if conditions are right 
-Node.prototype.spawn = function() 
-{
-	if (!teams[this.team].controller.isCapacityReached() && (this.getUnitsOfTeam(this.team).number != 0 || this.units.length == 0)) 
-	{
-		this.addUnits(this.team,1);
-		this.spawning = true;
-		let delay = (SPAWN_TIME*1000)/this.level;
-		if (this.fighting) delay *= FIGHT_SPAWN_MULTIPLIER; //units take twice as long to spawn while in combat
-		setTimeout(function(_this){_this.spawn();},delay,this);
-	}
-	else 
-	{
-		this.spawning = false;
-	}
-}
-//capturing function
-Node.prototype.capture = function() 
-{
-	if (this.units.length != 1) //if team is undefined, do not capture
-	{
-		this.capturing = false;
-		return;
-	}
-	if (this.captureTeam != undefined && this.units[0].team != this.captureTeam) //if another team arrives, they drain the capture points
-	{
-		if (this.capturePoints <= 0)
-		{
-			this.capturePoints = 0; //set capture points to zero to prevent a drawing error
-			this.capturing == false;
-			this.captureTeam = undefined;
-		}
-		else 
-		{
-			this.capturePoints -= 2; //recaptures at twice the rate
-		}
-		return;
-	}
-	this.captureTeam = this.units[0].team;
-	if (this.capturePoints >= 100) 
-	{
-		//node first turns to neutral before being captured
-		if (this.team != 0) 
-		{	
-			this.changeTeam(0);
-			this.capturing = true; //still capturing to turn it to team's control
-		}
-		else
-		{
-			this.changeTeam(this.units[0].team);
-			this.capturing = false;
-		}
-		this.captureTeam = undefined;
-		this.capturePoints = 0;
-	}
-	else 
-	{
-		//if the units have left the node, stop capturing
-		if (this.units[0].number == 0) 
-		{
-			this.capturePoints = 0;
-			this.capturing = false;
-		}
-		else 
-		{
-			this.capturePoints++;
-			this.capturing = true;
-		}
-	}
-	if (this.capturing) 
-	{	
-		let delay = (CAPTURE_TIME*100*this.level)/this.units[0].number;
-		setTimeout(function(_this){_this.capture();},delay,this);
-	}
-}
-//method to properly change the team of a node
-Node.prototype.changeTeam = function(newTeam) 
-{
-	if (this.team != 0) {} //team 0 does not have a controller
-	teams[this.team].controller.removeOccupiedNode(this);
-	this.team = newTeam;
-	if (newTeam != 0) {} //team 0 does not have a controller
-	teams[this.team].controller.addOccupiedNode(this);
-}
-//combat mechanics system (ported from BattleFunction program)
-Node.prototype.fight = function()
-{
-	//add the numbers of all teams to a total number
-	let unitNums = this.units;
-	var totalUnits = 0;
-	for(let x = 0; x < unitNums.length; x++)
-	{
-		totalUnits = +totalUnits + +unitNums[x].number;
-	}
-	//choose a random unit out of all units to attack
-	var attackerLocation = Math.floor(Math.random()*totalUnits)+1;
-	var attackerFound = false;
-	var index = 0;
-	while (!attackerFound)
-	{
-		
-		attackerLocation -= unitNums[index].number //subtract the unitnums from this
-		if (attackerLocation <= 0) //if this is <= 0, the attacker is in the current index
-		{
-			attackerFound = true;
-		}
-		else
-		{
-			index++;
-		}
-	}
-	for(let x = 0; x < unitNums.length; x++) //every array that is not the attacker loses 1 unit
-	{
-		if (x != index)
-		{
-			unitNums[x].number--;
-			//if index is zero, remove it
-			if (unitNums[x].number <= 0) 
-			{
-				teams[unitNums[x].team].controller.removeOccupiedNode(this);
-				unitNums.splice(x,1);
-			}
-		}
-	}
-	//continue fighting if a fight is still needed 
-	if (unitNums.length > 1)
-	{
-		let delay = Math.min((FIGHT_TIME*10000)/(totalUnits),FIGHT_TIME*1000);
-		setTimeout(function(_this){_this.fight();},delay,this);
-		this.fighting = true;
-	}
-	else 
-	{
-		this.fighting = false;
-	}
-	return unitNums; //returns unitNums if needed
 }
 //an object for a moving group of units
 //**********
 function MovingGroup(team,number,startNode,endNode) 
 {
+	this.id = 0; //moving group ID
 	this.team = team;
 	this.number = number;
 	this.startNode = startNode;
@@ -467,18 +271,19 @@ MovingGroup.prototype.drawObject = function(viewport)
 {
 	//draws a cloud of units
 	draw.fillStyle = teams[this.team].color;
-	if (graphics.zoomLevel < 2.5)
+	if (true || graphics.zoomLevel < 2)
 	{
 		for (let unitindex = 0; unitindex < this.number; unitindex += 1) 
 		{
 			let angle = Math.random()*2*Math.PI;
 			let distance = (20+this.number/10)*(1+Math.random());
 			let unitx = this.pos.x-viewport.x+(Math.cos(angle)*distance);
-			let unity = this.pos.y-viewport.y+(Math.sin(angle)*distance);			
-			draw.fillRect(unitx-2,unity-2,4,4);
+			let unity = this.pos.y-viewport.y+(Math.sin(angle)*distance);					
+			//draw.fillRect(unitx-2,unity-2,4,4); made smaller due to scale change
+			draw.fillRect(unitx-1,unity-1,2,2);
 		}
 	}
-	draw.fillText(this.number,this.pos.x-viewport.x-fontSize/2,this.pos.y-viewport.y+fontSize/4);
+	draw.fillText(this.number,this.pos.x-viewport.x,this.pos.y-viewport.y);
 }
 //moves the group towards its destination
 MovingGroup.prototype.move = function(dis) 
@@ -488,7 +293,7 @@ MovingGroup.prototype.move = function(dis)
 	//if close to the other node, add this group's units to that node
 	if (Position.getDistance(this.pos,this.endNode.pos) <= this.endNode.size) 
 	{
-		this.endNode.addUnits(this.team,this.number);
+		//this.endNode.addUnits(this.team,this.number);
 		//remove this group from array
 		for (let n in movingUnits) 
 		{
@@ -550,7 +355,7 @@ Units.prototype.updateUnitMap = function()
 	for (let index in this.unitMap) 
 	{
 		let unit = this.unitMap[index];
-		unit.angle += Math.random()*5 * (Math.PI / 180);
+		unit.angle += 1*(Math.PI / 180);
 	}
 }
 Units.prototype.addUnits = function(num) 
@@ -576,47 +381,66 @@ function ViewPort(x,y,width,height)
 	this.zoomLevel = 1;
 	this.AItargets = [];
 	let self = this;
+	this.handleResize() //adjust the screen initially
 	window.onresize = function(e) {self.handleResize(e);};
 	window.onwheel = function(e) {self.zoom(e);};
-	setInterval(function(_this){_this.drawAllInside();},20,this);
+	requestAnimationFrame(drawMain)
+	//setInterval(function(_this){_this.drawAllInside();},17,this);
 }
 //draws everything inside the viewport (could be optimized)
-ViewPort.prototype.drawAllInside = function() 
+function drawMain()
 {
 	//set font size
 	draw.font = "" + (fontSize) + "px" + " sans-serif";
+	draw.textAlign = "center"
 	//clear screen
 	draw.clearRect(0,0,canvas.width,canvas.height);
 	//draw the border
 	draw.strokeStyle = "rgb(255,255,255)";
 	draw.lineWidth = 8;
-	draw.strokeRect(0-this.x,0-this.y,MAP_SIZE,MAP_SIZE);
+	draw.strokeRect(0-graphics.x,0-graphics.y,MAP_SIZE,MAP_SIZE);
+	//calculate boundaries of viewport (plus a buffer region)
+	let vLeft = graphics.x-100
+	let vTop = graphics.y-100
+	let vRight = graphics.x+graphics.width+100
+	let vBottom = graphics.y+graphics.height+100
 	//draw moving groups
 	for (let index in movingUnits) 
 	{
 		let group = movingUnits[index];
 		//only draw if the object is near the viewport
-		if (group.pos.x+100 >= this.x && group.pos.y+100 >= this.y && group.pos.x-100 <= this.x+this.width && group.pos.y-100 <= this.y+this.height)
-			group.drawObject(this);
+		//if (group.pos.x+100 >= graphics.x && group.pos.y+100 >= graphics.y && group.pos.x-100 <= graphics.x+graphics.width && group.pos.y-100 <= graphics.y+graphics.height)
+		if (group.pos.x >= vLeft && group.pos.y >= vTop && group.pos.x <= vRight && group.pos.y <= vBottom)
+			group.drawObject(graphics);
 	}
 	//draw nodes
 	for (let index in gameMap.allObjects) 
 	{
 		let node = gameMap.allObjects[index];
 		//only draw if the object is near the viewport
-		if (node.pos.x+100 >= this.x && node.pos.y+100 >= this.y && node.pos.x-100 <= this.x+this.width && node.pos.y-100 <= this.y+this.height)
-			node.drawObject(this);
+		//if (node.pos.x+100 >= graphics.x && node.pos.y+100 >= graphics.y && node.pos.x-100 <= graphics.x+graphics.width && node.pos.y-100 <= graphics.y+graphics.height)
+		if (node.pos.x >= vLeft && node.pos.y >= vTop && node.pos.x <= vRight && node.pos.y <= vBottom)
+			node.drawObject(graphics);
 	}
-	//draw UI (currently just the unit indicator)
-	draw.fillStyle = "rgb(255,255,255)";
-	draw.lineWidth = 1;
-	draw.fillText(player.getTotalUnits() + " / " + player.unitCapacity,this.width/2,30*this.zoomLevel);
+	//update the unit indicator
+	unitCounter.innerHTML = "POP:" + player.getTotalUnits() + "/" + player.unitCapacity
+	//draw a box for box select
+	if (player.boxSelectPoint != undefined)
+	{
+		console.log("Drawing select box")
+		draw.strokeStyle = "rgba(255,255,255,0.5)";
+		draw.lineWidth = 4;
+		draw.strokeRect(player.boxSelectPoint.x-graphics.x,player.boxSelectPoint.y-graphics.y,
+			player.mousePos.x-player.boxSelectPoint.x,player.mousePos.y-player.boxSelectPoint.y)
+	}
+	//repeat when next animation frame is requested
+	requestAnimationFrame(drawMain)
 }
 //changes the viewport when the screen changes
 ViewPort.prototype.handleResize = function(e) 
 {
 	this.x -= (window.innerWidth*this.zoomLevel - this.width)/2;
-	this.y -= (window.innerHeight*this.zoomLevel - this.height)/2; //change dimensions to 
+	this.y -= (window.innerHeight*this.zoomLevel - this.height)/2;
 	canvas.width = window.innerWidth*this.zoomLevel;
 	canvas.height = window.innerHeight*this.zoomLevel;
 	this.width = window.innerWidth*this.zoomLevel;
@@ -628,9 +452,9 @@ ViewPort.prototype.zoom = function(e)
 	let scrollAmount = e.wheelDelta/-120;
 	this.zoomLevel += scrollAmount*0.05;
 	//put limits on zoom level
-	if (this.zoomLevel > 4) this.zoomLevel = 4;
+	if (this.zoomLevel > 3) this.zoomLevel = 3;
 	if (this.zoomLevel < 1) this.zoomLevel = 1;
-	fontSize = 16*this.zoomLevel;
+	fontSize = 16+16*((this.zoomLevel-1)/2);
 	this.handleResize(e); //resizes the screen automatically
 }
 //returns a random color for a team
@@ -662,7 +486,7 @@ LeaderBoard.prototype.getLeaders = function()
 	let allTeams = teams.slice(1);
 	allTeams.sort(function (a,b) //sort by unit capacity (develop a scoring system later?)
 	{
-		return a.controller.unitCapacity-b.controller.unitCapacity;
+		return b.controller.unitCapacity-a.controller.unitCapacity;
 	});
 	this.top10 = allTeams.slice(0,10);
 	this.updateBoard();
@@ -697,7 +521,6 @@ function Team(color,controller,name)
 	this.name = name || "An Unnamed Team";
 }
 ///main controller class, inherited by subclasses
-
 function Controller(team) 
 {
 	this.occupiedNodes = [];
@@ -757,10 +580,10 @@ Controller.prototype.calculateUnitCapacity = function()
 	for (let n in this.occupiedNodes) 
 	{
 		let node = this.occupiedNodes[n];
-		if (this.getOwner(node) == 1)
+		if (true || this.getOwner(node) == 1)
 		this.unitCapacity += node.level*UNITS_PER_LEVEL;
 	}
-	this.unitCapacity = Math.max(this.unitCapacity,10*UNITS_PER_LEVEL);
+	this.unitCapacity += 10*UNITS_PER_LEVEL
 	return this.unitCapacity;
 }
 //sums up all units in all nodes (should be using selectedNodes)
@@ -792,122 +615,6 @@ Controller.prototype.getOwner = function(node)
 		return 0;
 	else return -1;
 }
-///controller object for a bot, AI system
-BotController.prototype = new Controller();
-BotController.prototype.constructor = BotController;
-function BotController(team) 
-{
-	Controller.call(this,team);
-	setInterval(function(_this){_this.runAI();},100,this); //AI ticks
-	//AI configuration
-	this.expansionWeight = 0.5+Math.random(); //weight of expanding and gaining territory
-	this.attackWeight = 0.5+Math.random(); //weight of attacking and eliminating other players
-	this.defenseWeight = 0.5+Math.random(); //weight of protecting nodes and units
-	this.reaction = 0.05; //chance of the AI acting every AI tick
-}
-//main AI loop
-BotController.prototype.runAI = function() 
-{
-	//get the available moves for the AI
-	this.getData();
-	//assign values
-	this.assignValues();
-	graphics.AItargets = this.availableMoves; //test feature
-	if (Math.random() <= this.reaction && this.occupiedNodes.length != 0) 
-	{
-
-		//search for the highest value move, with some randomness
-		let chosenMove = null;
-		let chosenValue = 0;
-		for (let m in this.availableMoves) 
-		{
-			let move = this.availableMoves[m];
-			let tempValue = move.value * Math.random();
-			if (tempValue > chosenValue) 
-			{
-				chosenMove = move;
-				chosenValue = tempValue;
-			}
-		}
-		//make the chosen move
-		if (chosenMove != null)
-		this.moveUnits(chosenMove.origin,chosenMove.target,Math.floor(chosenMove.origin.getUnitsOfTeam(this.team).number/2));
-
-	}
-}
-//gets data
-BotController.prototype.getData = function() 
-{
-	this.availableMoves = []; //get all available moves for the AI
-	for (let n1 in this.occupiedNodes) 
-	{
-		let originNode = this.occupiedNodes[n1];
-		let availableTargets = gameMap.checkAllInRange(originNode.pos,MAX_RANGE);
-		for (let n2 in availableTargets) 
-		{
-			let targetNode = availableTargets[n2];
-			if (originNode != targetNode)
-			this.availableMoves.push({origin:originNode,target:targetNode,value:0});
-		}
-	}
-}
-//assign values
-BotController.prototype.assignValues = function() 
-{
-	for (let m in this.availableMoves) 
-	{
-		let move = this.availableMoves[m];
-		let origin = move.origin, target = move.target;
-		let originOwner = this.getOwner(origin); //1 for this control, -1 for enemy control, 0 for neutral control
-		let targetOwner = this.getOwner(target); //1 for this control, -1 for enemy control, 0 for neutral control
-		let originUnits = 2*origin.getUnitsOfTeam(this.team).number-origin.getTotalUnits(); //positive if friendlies outnumber enemies, negative otherwise
-		let targetUnits = 2*target.getUnitsOfTeam(this.team).number-target.getTotalUnits(); //positive if friendles outnumber enemies, negative otherwise
-		//analyze the target
-		if (targetOwner == 1) //target is allied
-		{
-			if (targetUnits <= -5 && originUnits > -2 * targetUnits) //target ally is under attack
-			{
-				move.value += (2+target.level+target.getTotalUnits()/10)*this.defenseWeight; //high-value move
-			}
-		}
-		if (targetOwner == 0) //target is neutral
-		{
-			move.value += target.level * this.expansionWeight; //increase the incentive to capture this node
-		}
-		if (targetOwner == -1) //target is enemy
-		{
-			if (originUnits > -2.5 * targetUnits)
-			{
-				move.value += (2+target.level+target.getTotalUnits()/10)*this.attackWeight; //high-value move
-			}
-			else 
-			{
-				move.value -= 5; //if the target is strong enough to resist the attack, avoid this move
-			}
-		}
-		//analyze the origin
-		move.value -= Math.max(0,(10*this.defenseWeight-originUnits)); //moves with small numbers of units have lower value
-		if (originOwner == 1) //origin is allied 
-		{
-			
-		}
-		if (originOwner == 0) //target is neutral
-		{
-			move.value -= 2*origin.level*this.expansionWeight; //avoid moving units off of neutral nodes
-		}
-		if (originOwner == -1) //target is enemy
-		{
-			if (originUnits <= -5) //units are being overwhelmed
-			{
-				move.value += 10*this.defenseWeight; //high-value move to evacuate
-			}
-			else 
-			{
-				move.value -= 3*origin.level*this.attackWeight; //avoid removing units from an active attack
-			}
-		}
-	}
-}
 ///controller object for a team, player user input system
 PlayerController.prototype = new Controller();
 PlayerController.prototype.constructor = PlayerController;
@@ -915,30 +622,29 @@ function PlayerController(team)
 {
 	Controller.call(this,team);
 	this.selectedNodes = []; //nodes the player has currently selected
-	this.newGroups = []; //groups created during the most recent
+	this.newGroups = []; //groups created during the most recent move order
 	this.selecting = false; //whether or not to select nodes the mouse hovers over
 	this.dragMode = false; //whether the user is dragging the camera
+	this.boxSelectPoint = undefined; //the point that box select started on, or undefined if box select is inactive
 	this.mousePos; //the current mouse position
+	this.unitPercentage = 50; //percentage of units sent on move orders
 	//add control handlers
 	let self = this;
 	window.onkeydown = function(e) {self.getKeyboardInput(e);};
+	window.onkeyup = function(e) {self.getKeyUp(e);};
 	canvas.onmousedown = function(e) {self.getMouseDown(e);};
 	canvas.onmousemove = function(e) {self.getMouseMove(e);};
 	canvas.onmouseup = function(e) {self.getMouseUp(e);};
 	canvas.ondblclick = function(e) {self.getDoubleClick(e);};
 	canvas.onmouseout = function(e) {self.selecting = false; self.dragMode = false;}; //resets modes if mouse exits game
+	unitSlider.oninput = function(e) {self.changeUnitPercentage();};
 }
 //spawns in the player
 PlayerController.prototype.spawn = function(e) 
 {
 	//pushes out a new color for the player
 	this.team = teams.length;
-	let spawnPoint = gameBoard.spawnNewPlayer(this);
-	let chosenName = document.getElementById("nameBox").value;
-	if (chosenName != "")
-	teams[this.team].name = chosenName;
-	graphics.x = spawnPoint.pos.x-(graphics.width/2);
-	graphics.y = spawnPoint.pos.y-(graphics.height/2);
+	sendSpawnPlayer(document.getElementById("nameBox").value)
 }
 //adds a selected node, avoiding duplicates
 PlayerController.prototype.addSelectedNode = function(node) 
@@ -960,28 +666,71 @@ PlayerController.prototype.getKeyboardInput = function(e)
 {
 	switch (e.keyCode) 
 	{
-		case 37: //left
-		graphics.x -= 25;;
+		case 37: case 65: //left arrow or A
+		graphics.x -= 25*graphics.zoomLevel;
 		break;
-		case 38: //up
-		graphics.y -= 25;
+		case 38: case 87: //up arrow or W
+		graphics.y -= 25*graphics.zoomLevel;
 		break;
-		case 39: //right
-		graphics.x += 25;
+		case 39: case 68: //right arrow or D
+		graphics.x += 25*graphics.zoomLevel;
 		break;
-		case 40: //down
-		graphics.y += 25;
+		case 40: case 83: //down arrow or S
+		graphics.y += 25*graphics.zoomLevel;
 		break;
-		case 32: //space, selects all occupied nodes?
+		case 81: //Q
+		unitSlider.value -= 10;
+		this.changeUnitPercentage();
+		break;
+		case 69: //E
+		unitSlider.value -= -10; //strange format to prevent string concactenation
+		this.changeUnitPercentage();
+		break;
+		case 32: //space, activates box selection
 		if (this.team !== undefined) 
 		{
+			if (this.boxSelectPoint == undefined)
+				this.boxSelectPoint = this.mousePos
+			/*
 			for (var n in this.occupiedNodes) 
 			{
 				let node = this.occupiedNodes[n];
 				this.selectedNodes.push(node);
 				node.selected = true;
 			}
+			*/
 		}
+		break;
+		default:
+		console.log("Unidentified Key " + e.keyCode)
+		break;
+	}
+}
+PlayerController.prototype.getKeyUp = function(e)
+{
+	switch (e.keyCode)
+	{
+		case 32: //space, finish box select
+		if (this.boxSelectPoint != undefined)
+		{
+			//get upper left and lower right corners
+			let x1 = Math.min(this.boxSelectPoint.x,this.mousePos.x)
+			let y1 = Math.min(this.boxSelectPoint.y,this.mousePos.y)
+			let x2 = Math.max(this.boxSelectPoint.x,this.mousePos.x)
+			let y2 = Math.max(this.boxSelectPoint.y,this.mousePos.y)
+			let point1 = new Position(x1,y1)
+			let point2 = new Position(x2,y2)
+			//check each occupied node to see if it is within the box
+			for (let n in this.occupiedNodes)
+			{
+				let node = this.occupiedNodes[n]
+				if (node.pos.x > point1.x && node.pos.x < point2.x && node.pos.y > point1.y && node.pos.y < point2.y)
+				{
+					this.addSelectedNode(node)
+				}
+			}
+		}
+		this.boxSelectPoint = undefined;
 		break;
 	}
 }
@@ -1012,7 +761,7 @@ PlayerController.prototype.getMouseDown = function(e)
 			this.dragMode = true;
 		}
 	}
-	else //if in spectator, enable draggin
+	else //if in spectator, enable dragging
 	{
 		this.dragMode = true;
 	}
@@ -1022,7 +771,7 @@ PlayerController.prototype.getMouseMove = function(e)
 	let nextPos = new Position((e.clientX*graphics.zoomLevel)+graphics.x, (e.clientY*graphics.zoomLevel)+graphics.y);
 	if (this.team !== undefined && this.selecting)
 	{
-		//detect the node that the mosue is over
+		//detect the node that the mouse is over
 		let node = null;
 		let potentialSelections = gameMap.checkAllInRange(this.mousePos,250);
 		for (let n in potentialSelections) 
@@ -1066,7 +815,7 @@ PlayerController.prototype.getMouseUp = function(e)
 		let potentialSelections = gameMap.checkAllInRange(this.mousePos,250);
 		for (let n in potentialSelections) 
 		{
-			if (Position.getDistance(this.mousePos,potentialSelections[n].pos) <= potentialSelections[n].size+50) 
+			if (Position.getDistance(this.mousePos,potentialSelections[n].pos) <= potentialSelections[n].size+30) //changed from +50 due to size change 
 			{
 				node = potentialSelections[n];
 			}
@@ -1078,10 +827,12 @@ PlayerController.prototype.getMouseUp = function(e)
 			{
 				let otherNode = this.selectedNodes[x];
 				otherNode.selected = false;
-				let unitsTransferred = Math.floor(otherNode.getUnitsOfTeam(this.team).number/2);
+				let unitsTransferred = Math.floor(otherNode.getUnitsOfTeam(this.team).number*(this.unitPercentage/100));
 				if (node != null && node != otherNode)
 				{
-					this.newGroups.push(this.moveUnits(otherNode,node,unitsTransferred)); //creates a new moving group and pushes it to newGroups
+					console.log("Moving Units")
+					//this.newGroups.push(this.moveUnits(otherNode,node,unitsTransferred)); //creates a new moving group and pushes it to newGroups
+					socket.emit("move",{otherNode:otherNode.id,node:node.id,unitsTransferred:unitsTransferred})
 				}
 			}
 			//initialize double click detection
@@ -1101,6 +852,7 @@ PlayerController.prototype.getMouseUp = function(e)
 //gets a double click
 PlayerController.prototype.getDoubleClick = function(e) 
 {
+	console.log("Doubleclick detected")
 	for (let x in this.newGroups) 
 	{
 		//double the send amounts
@@ -1119,6 +871,177 @@ PlayerController.prototype.getDoubleClick = function(e)
 		}
 	}
 }
+//updates the unit percentage
+PlayerController.prototype.changeUnitPercentage = function()
+{
+	console.log("Changing unit percentage")
+	let value = unitSlider.value;
+	this.unitPercentage = value;
+	unitValue.innerHTML = value + "%"
+}
 //call initialization method at end of code so that all methods are loaded first
 //}
 
+//get an object by ID
+function getObjectById(id) //returns the object with the given ID, or undefined if none is present
+{
+	for (let n in gameMap.allObjects)
+	{
+		let object = gameMap.allObjects[n]
+		if (id == object.id)
+			return object;
+	}
+	return undefined
+}
+//new netcode functions
+function updateTeams(data)
+{
+	for (let n in data)
+	{
+		let entry = data[n]
+		let newTeam = new Team(entry.color,new Controller(),entry.name)
+		//test to ensure the teams are not duplicated
+		if (teams[n] == undefined)
+		{
+			//console.log("New Team Detected")
+			let entry = data[n]
+			let newTeam = new Team(entry.color,new Controller(),entry.name)
+			teams.push(newTeam)
+		}
+		else
+		{
+			//console.log("Duplicate Team Detected")
+		}
+	}
+	if (player.team != undefined && player.team != 0)
+	teams[player.team].controller = player
+}
+function updateGameMap(data)
+{
+	for (let n in data) 
+	{
+		let entry = data[n];
+		//test to see if a duplicate is detected
+		let duplicate = undefined
+		for (let n in gameMap.allObjects)
+		{
+			if (entry.id == gameMap.allObjects[n].id)
+				duplicate = gameMap.allObjects[n]
+		}
+		if (duplicate == undefined) //adding new node
+		{
+			//console.log("New Node Detected")
+			let tempNode = new Node(entry.pos,entry.level);
+			for (let u in entry.units)
+			{
+				let group = entry.units[u];
+				tempNode.addUnits(group.team,group.number)
+			}
+			tempNode.id = entry.id
+			tempNode.team = entry.team
+			teams[entry.team].controller.addOccupiedNode(tempNode)
+			tempNode.capturePoints = entry.capturePoints
+			tempNode.captureTeam = entry.captureTeam
+			gameMap.addObject(tempNode)
+		}
+		else //updating attributes of existing node
+		{
+			//console.log("Node already exists, updating attributes")
+			for (let u in entry.units) //update each unit group
+			{
+				let newUnits = entry.units[u]
+				let oldUnits = duplicate.getUnitsOfTeam(newUnits.team)
+				let difference = newUnits.number-oldUnits.number
+				duplicate.addUnits(newUnits.team,difference)
+			}
+			for (let n in duplicate.units) //check for groups that have been eliminated
+			{
+				let isPresent = false
+				for (let u in entry.units)
+				{
+					isPresent = isPresent || duplicate.units[n].team == entry.units[u].team
+				}
+				if (!isPresent)
+				{
+					duplicate.addUnits(duplicate.units[n].team,-100)
+				}
+			}
+			duplicate.team = entry.team
+			duplicate.capturePoints = entry.capturePoints
+			duplicate.captureTeam = entry.captureTeam
+			//tempNode.selected = gameMap.allObjects[n].selected
+			//gameMap.allObjects[n] = tempNode
+		}
+			
+	}
+}
+function updateMovingGroups(data)
+{
+	for (let n in data)
+	{
+		let entry = data[n]
+		let newGroup = new MovingGroup(entry.team,entry.number,entry.startNode,entry.endNode)
+		newGroup.id = entry.id
+		//add the moving group if it is not on the field
+		let duplicateDetected = false
+		for (let u in movingUnits)
+		{
+			duplicateDetected = duplicateDetected || newGroup.id == movingUnits[u].id
+		}
+		if (!duplicateDetected)
+			movingUnits.push(newGroup)
+	}
+}
+function processPackets(data)
+{
+	for (let n in data)
+	{
+		let entry = data[n]			
+		let node = getObjectById(entry.node)
+		switch (entry.type)
+		{
+			case "units": //units are added or removed from the node
+			node.addUnits(entry.team,entry.number)
+			break;
+			case "assault": //the node is being captured
+			node.capturePoints = entry.points
+			node.captureTeam = entry.team
+			break;
+			case "capture": //the node has changed teams
+			teams[node.team].controller.removeOccupiedNode(node)
+			node.team = entry.team
+			teams[node.team].controller.addOccupiedNode(node)
+			break;
+			case "move": //a moving group is being generated
+			let newGroup = new MovingGroup(entry.team,entry.number,node,getObjectById(entry.otherNode))
+			newGroup.id = entry.id
+			movingUnits.push(newGroup)
+			break;
+			case "groupLoss": //a moving group has lost units due to attrition
+			let group;
+			for (let u in movingUnits)
+			{
+				if (movingUnits[u].id == entry.id)
+					group = movingUnits[u]
+			}
+			if (group != undefined)
+			{
+				group.number -= entry.number
+			}
+			break;
+		}
+	}
+}
+function sendSpawnPlayer(name)
+{
+	socket.emit("spawn",name)
+}
+function completeSpawn(data)
+{
+	player.team = data.team
+	graphics.x = data.spawnPoint.pos.x-(graphics.width/2);
+	graphics.y = data.spawnPoint.pos.y-(graphics.height/2);
+	//reset data for the spawn point
+	let spawnNode = getObjectById(data.spawnPoint.id)
+	spawnNode.capturePoints = 0; spawnNode.captureTeam = 0; spawnNode.units = [];
+}

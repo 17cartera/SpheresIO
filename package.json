@@ -1,0 +1,24 @@
+{
+  "name": "spheresio",
+  "version": "1.0.0",
+  "description": "An innovative new .io game, currently in beta testing.\r Webpage location: https://Crusher48.github.io/SpheresIO",
+  "main": "Spheres.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Crusher48/SpheresIO.git"
+  },
+  "author": "Crusher48",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Crusher48/SpheresIO/issues"
+  },
+  "homepage": "https://github.com/Crusher48/SpheresIO#readme",
+  "dependencies": {
+    "express": "^4.16.3",
+    "npm": "^6.0.1",
+    "socket.io": "^2.1.1"
+  }
+}
