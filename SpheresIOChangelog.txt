@@ -6,6 +6,10 @@
 *Double-clicking is nonfunctional
 *Client lag can result in moving groups appearing in an incorrect position
 
+-Bugs needing investigation:
+*-1 units appeared on a node
+*"Cannot read property number of undefined" crash in attack code
+
 -Todo list: 
 *Improve controls and UI
 *Optimization

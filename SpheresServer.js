@@ -364,7 +364,14 @@ Node.prototype.fight = function()
 	var index = 0;
 	while (!attackerFound)
 	{
-		
+		if (unitNums[index] == undefined)
+		{
+			console.log("Error detected: invalid unitNums[index]")
+			console.log(unitNums)
+			console.log(index)
+			this.fighting = false
+			break;
+		}
 		attackerLocation -= unitNums[index].number //subtract the unitnums from this
 		if (attackerLocation <= 0) //if this is <= 0, the attacker is in the current index
 		{
