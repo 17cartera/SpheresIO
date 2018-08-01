@@ -10,6 +10,7 @@
 *Improve UI and unit selection hitboxes
 *Update tutorial
 *Fix group travel speed
+*Add handling for player disconnects
 
 -Ideas:
 *Calculate leaderboard server-side (increased bandwidth cost, but less client computation needed?)

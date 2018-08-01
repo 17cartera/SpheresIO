@@ -22,9 +22,7 @@ var initialize = function()
 	leaderBoard = new LeaderBoard();
 }
 
-//{ backbone game logic objects
 ///logic system
-//**********
 function GameController()
 {
 	//generate the neutral team
@@ -196,7 +194,6 @@ GameMap.prototype.drawGrid = function()
 */
 //}
 
-//{ game objects
 //class for nodes
 function Node(position,level) 
 {
@@ -416,8 +413,8 @@ Node.prototype.fight = function()
 	}
 	return unitNums; //returns unitNums if needed
 }
+
 //an object for a moving group of units
-//**********
 function MovingGroup(team,number,startNode,endNode) 
 {
 	this.id = generateMovingGroupID(); //unique ID of this moving group
@@ -513,6 +510,7 @@ Position.getDirection = function(pos1,pos2)
 	}
 	return result;
 }
+
 //an object for a unit group (may not be needed)
 function Units(team,number)
 {
@@ -538,6 +536,7 @@ function generateRandomColor()
 	}
 	return 'rgb(' + red + ',' + green + ',' + blue + ')';
 }
+
 ///leaderboard mechanic
 function LeaderBoard() 
 {
@@ -574,9 +573,7 @@ LeaderBoard.prototype.updateBoard = function()
 		}
 	}
 }
-//}
 
-//{ player controller objects
 ///object for a team
 function Team(color,controller,name) 
 {
@@ -584,8 +581,8 @@ function Team(color,controller,name)
 	this.controller = controller;
 	this.name = name || "An Unnamed Team";
 }
-///main controller class, inherited by subclasses
 
+///main controller class, inherited by subclasses
 function Controller(team) 
 {
 	this.occupiedNodes = [];
@@ -681,6 +678,7 @@ Controller.prototype.getOwner = function(node)
 		return 0;
 	else return -1;
 }
+
 ///controller object for a bot, AI system
 BotController.prototype = new Controller();
 BotController.prototype.constructor = BotController;
@@ -797,6 +795,7 @@ BotController.prototype.assignValues = function()
 		}
 	}
 }
+
 //controller object for an online player
 PlayerController.prototype = new Controller();
 PlayerController.prototype.constructor = PlayerController;
@@ -827,21 +826,6 @@ function PlayerController(team,client)
 	{
 		this.move(data)
 	})
-	/*
-	this.selectedNodes = []; //nodes the player has currently selected
-	this.newGroups = []; //groups created during the most recent
-	this.selecting = false; //whether or not to select nodes the mouse hovers over
-	this.dragMode = false; //whether the user is dragging the camera
-	this.mousePos; //the current mouse position
-	//add control handlers
-	let self = this;
-	window.onkeydown = function(e) {self.getKeyboardInput(e);};
-	canvas.onmousedown = function(e) {self.getMouseDown(e);};
-	canvas.onmousemove = function(e) {self.getMouseMove(e);};
-	canvas.onmouseup = function(e) {self.getMouseUp(e);};
-	canvas.ondblclick = function(e) {self.getDoubleClick(e);};
-	canvas.onmouseout = function(e) {self.selecting = false; self.dragMode = false;}; //resets modes if mouse exits game
-	*/
 }
 //transfer all map data to the client
 PlayerController.prototype.transferAllData = function()
@@ -880,8 +864,6 @@ PlayerController.prototype.spawn = function(name)
 	this.team = teams.length;
 	let spawnPoint = gameBoard.spawnNewPlayer(this,name);
 	this.client.emit("spawnsuccess",{team:this.team,spawnPoint:spawnPoint})
-	//graphics.x = spawnPoint.pos.x-(graphics.width/2);
-	//graphics.y = spawnPoint.pos.y-(graphics.height/2);
 }
 //transmit a move order
 PlayerController.prototype.move = function(data)
@@ -904,7 +886,9 @@ function generateMovingGroupID()
 	lastID++;
 	return lastID;
 }
-function getObjectById(id) //returns the object with the given ID, or undefined if none is present
+
+//returns the object with the given ID, or undefined if none is present
+function getObjectById(id) 
 {
 	for (let n in gameMap.allObjects)
 	{
@@ -915,7 +899,7 @@ function getObjectById(id) //returns the object with the given ID, or undefined 
 	return undefined
 }
 
-///new netcode elements
+///netcode elements
 var express = require('express');  
 var app = express();  
 var server = require('http').createServer(app);  

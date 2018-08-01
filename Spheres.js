@@ -122,7 +122,6 @@ GameMap.prototype.drawGrid = function()
 	}
 }
 
-//{ game objects
 //class for nodes
 function Node(position,level) 
 {
@@ -254,8 +253,8 @@ Node.prototype.addUnits = function(team,number)
 		//teams[team].controller.addOccupiedNode(this);
 	}
 }
+
 //an object for a moving group of units
-//**********
 function MovingGroup(team,number,startNode,endNode) 
 {
 	this.id = 0; //moving group ID
@@ -309,8 +308,8 @@ MovingGroup.prototype.move = function(dis)
 		setTimeout(function(_this){_this.move(MOVE_SPEED/50);},20,this);
 	}
 }
+
 //a simple position object, used for certain inherited methods
-//**********
 function Position(x,y)
 {
 		this.x = x; this.y = y;
@@ -368,9 +367,7 @@ Units.prototype.addUnits = function(num)
 		this.unitMap.push({angle:angle,distance:distance});
 	}
 }
-//}
 
-//{ graphics objects
 ///graphics system
 function ViewPort(x,y,width,height)
 {
@@ -475,6 +472,7 @@ function generateRandomColor()
 	}
 	return 'rgb(' + red + ',' + green + ',' + blue + ')';
 }
+
 ///leaderboard mechanic
 function LeaderBoard() 
 {
@@ -511,9 +509,7 @@ LeaderBoard.prototype.updateBoard = function()
 		}
 	}
 }
-//}
 
-//{ player controller objects
 ///object for a team
 function Team(color,controller,name) 
 {
@@ -616,6 +612,7 @@ Controller.prototype.getOwner = function(node)
 		return 0;
 	else return -1;
 }
+
 ///controller object for a team, player user input system
 PlayerController.prototype = new Controller();
 PlayerController.prototype.constructor = PlayerController;
@@ -879,11 +876,9 @@ PlayerController.prototype.changeUnitPercentage = function()
 	this.unitPercentage = value;
 	unitValue.innerHTML = value + "%"
 }
-//call initialization method at end of code so that all methods are loaded first
-//}
 
-//get an object by ID
-function getObjectById(id) //returns the object with the given ID, or undefined if none is present
+//returns the object with the given ID, or undefined if none is present
+function getObjectById(id) 
 {
 	for (let n in gameMap.allObjects)
 	{
@@ -893,7 +888,8 @@ function getObjectById(id) //returns the object with the given ID, or undefined 
 	}
 	return undefined
 }
-//new netcode functions
+
+//netcode elements
 function updateTeams(data)
 {
 	for (let n in data)
