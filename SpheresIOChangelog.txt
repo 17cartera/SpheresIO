@@ -9,17 +9,18 @@
 -Todo list: 
 *Improve UI and unit selection hitboxes
 *Update tutorial
-*Fix group travel speed
+*Fix group travel speed (done)
 *Add handling for player disconnects
 
 -Ideas:
 *Calculate leaderboard server-side (increased bandwidth cost, but less client computation needed?)
-*Move all units on a single timer (reduces the truly excessive use of setTimeout)
 
 Alpha:
 
 8/1/18:
 *Fixed a bug where a node could end up with negative units
+*Changed moving groups to all operate off of a single timer
+--Seems to have fixed lag with unit movement
 
 7/31/18:
 *Server now uses port 80 (default HTTP port) instead of port 3000

@@ -265,7 +265,7 @@ function MovingGroup(team,number,startNode,endNode)
 	this.pos = new Position(startNode.pos.x,startNode.pos.y);
 	this.direction = Position.getDirection(this.startNode.pos,this.endNode.pos);
 	//this.move(this.startNode.size); //start moving when spawned
-	setTimeout(function(_this){_this.move(_this.startNode.size);},250,this);
+	//setTimeout(function(_this){_this.move(_this.startNode.size);},250,this);
 }
 MovingGroup.prototype.drawObject = function(viewport) 
 {
@@ -305,9 +305,16 @@ MovingGroup.prototype.move = function(dis)
 	else 
 	{
 		//set a timer for the next move
-		setTimeout(function(_this){_this.move(MOVE_SPEED/50);},20,this);
+		//setTimeout(function(_this){_this.move(MOVE_SPEED/50);},20,this);
 	}
 }
+//unit move loop
+function moveAllGroups()
+{
+	for (var u in movingUnits)
+		movingUnits[u].move(MOVE_SPEED/60)
+}
+setInterval(moveAllGroups,1000/60)
 
 //a simple position object, used for certain inherited methods
 function Position(x,y)
