@@ -489,8 +489,8 @@ MovingGroup.prototype.checkForAttrition = function()
 		}
 	}
 }
+
 //a simple position object, used for certain inherited methods
-//**********
 function Position(x,y)
 {
 		this.x = x; this.y = y;
