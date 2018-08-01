@@ -247,7 +247,7 @@ Node.prototype.addUnits = function(team,number)
 	if (isAdded == false && number != 0) 
 	{
 		this.units.push(new Units(team,number));
-		//teams[team].controller.addOccupiedNode(this);
+		teams[team].controller.addOccupiedNode(this);
 	}
 }
 
@@ -524,9 +524,9 @@ function Team(color,controller,name)
 ///main controller class, inherited by subclasses
 function Controller(team) 
 {
-	this.occupiedNodes = [];
+	this.occupiedNodes = []; //list of all nodes with this team's units on them
 	this.team = team; //ID of this controller's team
-	this.unitCapacity = 0;
+	this.unitCapacity = 0; //this team's unit capacity
 }
 //creates a moving group between the target node and the other node
 Controller.prototype.moveUnits = function(startNode,endNode,unitsTransferred)
@@ -577,14 +577,13 @@ Controller.prototype.removeOccupiedNode = function(node)
 //calculates unit capacity
 Controller.prototype.calculateUnitCapacity = function() 
 {
-	this.unitCapacity = 0;
-	for (let n in this.occupiedNodes) 
+	this.unitCapacity = 10*UNITS_PER_LEVEL; //start at base capacity
+	for (let n in this.occupiedNodes) //add capacity for each owned node
 	{
 		let node = this.occupiedNodes[n];
-		if (true || this.getOwner(node) == 1)
-		this.unitCapacity += node.level*UNITS_PER_LEVEL;
+		if (this.getOwner(node) == 1)
+			this.unitCapacity += node.level*UNITS_PER_LEVEL;
 	}
-	this.unitCapacity += 10*UNITS_PER_LEVEL
 	return this.unitCapacity;
 }
 //sums up all units in all nodes (should be using selectedNodes)

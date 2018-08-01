@@ -1,12 +1,12 @@
 
 -Known Bugs/issues:
-*Units on non-owned nodes are not properly added to a team's population
 *Rarely, nodes can become stuck as neutral
 *Random colors can be too identical to each other
 *Double-clicking is nonfunctional
 *Client lag can result in moving groups appearing in an incorrect position (fixed?)
 --Still causes problems if client tabs out
---Minor issue: slight delay between moving group arriving on client and node being updated
+--Minor issue: slight delay between moving group arriving on client and node being updated (ping-based?)
+*Attrition formula is incorrect
 
 -Todo list: 
 *Improve UI and unit selection hitboxes (done)
@@ -21,10 +21,13 @@ Alpha:
 
 8/1/18:
 *Fixed a bug where a node could end up with negative units
+*Fixed a bug where units on uncontrolled nodes did not factor into client-side unit cap calculation
+*Fixed a bug where unowned occupied nodes still counted for purposes of preventing attrition
 *Changed moving groups to all operate off of a single timer
 --Seems to have fixed laggy unit movement
 *Spaced out the unit text more to improve readability with high unit counts
 *Increased distance between nodes in map generation
+*Updated tutorial for new features
 
 7/31/18:
 *Server now uses port 80 (default HTTP port) instead of port 3000

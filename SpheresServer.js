@@ -33,7 +33,7 @@ function GameController()
 	this.generateMap(MAP_SIZE,MAP_SIZE);
 	setInterval(gameTick,100); //ticks game updates
 	//occasionally spawn in new bots
-	//setInterval(function(_this){_this.spawnNewPlayer(new BotController(teams.length),"Bot " + teams.length)},60000,this);
+	//setInterval(function(_this){_this.spawnNewPlayer(new BotController(teams.length),"Bot")},60000,this);
 }
 //generates a map
 GameController.prototype.generateMap = function(height,width) 
@@ -63,7 +63,7 @@ GameController.prototype.generateMap = function(height,width)
 	let t = 1;
 	while (t <= TEAMS_TO_GENERATE) 
 	{
-		this.spawnNewPlayer(new BotController(teams.length),"Bot " + teams.length);
+		this.spawnNewPlayer(new BotController(teams.length),"Bot");
 		t++;
 	}
 }
@@ -459,7 +459,7 @@ MovingGroup.prototype.checkForAttrition = function()
 	for (let n in friendlyNodes)
 	{
 		let node = friendlyNodes[n]
-		if (Position.getDistance(this.pos,node.pos) < CONTROL_RANGE)
+		if (this.team == node.team && Position.getDistance(this.pos,node.pos) < CONTROL_RANGE)
 		{
 			nearFriendly = true;
 		}
@@ -592,9 +592,9 @@ function Team(color,controller,name)
 ///main controller class, inherited by subclasses
 function Controller(team) 
 {
-	this.occupiedNodes = [];
+	this.occupiedNodes = []; //list of all nodes with this team's units on them
 	this.team = team; //ID of this controller's team
-	this.unitCapacity = 0;
+	this.unitCapacity = 0; //this team's unit capacity
 }
 //creates a moving group between the target node and the other node
 Controller.prototype.moveUnits = function(startNode,endNode,unitsTransferred)
@@ -636,7 +636,7 @@ Controller.prototype.removeOccupiedNode = function(node)
 			this.occupiedNodes.splice(n,1);
 			if (this.occupiedNodes.length == 0) //if the controller has no nodes, it is eliminated
 			{
-				console.log("Player " + this.team + " has been eliminated")
+				console.log("Player " + teams[this.team].name + " (" + this.team + ")" + " has been eliminated")
 			}
 			return;
 		}
@@ -646,14 +646,13 @@ Controller.prototype.removeOccupiedNode = function(node)
 //calculates unit capacity
 Controller.prototype.calculateUnitCapacity = function() 
 {
-	this.unitCapacity = 0;
-	for (let n in this.occupiedNodes) 
+	this.unitCapacity = 10*UNITS_PER_LEVEL; //start at base capacity
+	for (let n in this.occupiedNodes) //add capacity for each owned node
 	{
 		let node = this.occupiedNodes[n];
 		if (this.getOwner(node) == 1)
-		this.unitCapacity += node.level*UNITS_PER_LEVEL;
+			this.unitCapacity += node.level*UNITS_PER_LEVEL;
 	}
-	this.unitCapacity += 10*UNITS_PER_LEVEL
 	return this.unitCapacity;
 }
 //sums up all units in all nodes (should be using selectedNodes)
