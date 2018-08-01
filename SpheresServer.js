@@ -914,8 +914,8 @@ app.get('/', function(req, res,next) {
     res.sendFile(__dirname + '/index.html');
 });
 //serve client script to client
-app.get('/spheres.js', function(req, res,next) {  
-    res.sendFile(__dirname + '/spheres.js');
+app.get('/Spheres.js', function(req, res,next) {  
+    res.sendFile(__dirname + '/Spheres.js');
 });
 //server constants to client
 app.get('/consts.js', function(req, res,next) {  
