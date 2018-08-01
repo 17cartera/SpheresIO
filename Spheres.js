@@ -39,6 +39,10 @@ var initialize = function()
 	{
 		updateMovingGroups(data)
 	});
+	socket.on('leaderboard',function(data)
+	{
+		updateLeaderBoard(data)
+	});
 	socket.on('data',function(data)
 	{
 		processPackets(data)
@@ -481,15 +485,16 @@ function generateRandomColor()
 function LeaderBoard() 
 {
 	this.top10 = [];
-	setTimeout(function(_this){_this.getLeaders();},1000,this);
+	//setTimeout(function(_this){_this.getLeaders();},1000,this);
 }
 //get the leaders
 LeaderBoard.prototype.getLeaders = function() 
 {
+	console.log("Updating Leaderboard")
 	let allTeams = teams.slice(1);
 	allTeams.sort(function (a,b) //sort by unit capacity (develop a scoring system later?)
 	{
-		return b.controller.unitCapacity-a.controller.unitCapacity;
+		return a.controller.unitCapacity-b.controller.unitCapacity;
 	});
 	this.top10 = allTeams.slice(0,10);
 	this.updateBoard();
@@ -503,6 +508,7 @@ LeaderBoard.prototype.updateBoard = function()
 		let element = document.getElementById(index); let team = this.top10[index-1];
 		if (team !== undefined)
 		{
+			//console.log(team.controller.unitCapacity)
 			element.style.visibility = "visible";
 			element.innerHTML = team.name;
 			element.style.color = team.color;
@@ -991,6 +997,16 @@ function updateMovingGroups(data)
 			movingUnits.push(newGroup)
 	}
 }
+function updateLeaderBoard(data)
+{
+	leaderBoard.top10 = []
+	for (let n in data)
+	{
+		leaderBoard.top10.push(data[n])
+	}
+	leaderBoard.updateBoard()
+}
+//process game information packets
 function processPackets(data)
 {
 	for (let n in data)

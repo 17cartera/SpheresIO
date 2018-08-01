@@ -26,7 +26,7 @@ var initialize = function()
 function GameController()
 {
 	//generate the neutral team
-	let neutralTeam = new Team("rgb(128,128,128)",new Controller(),"")
+	let neutralTeam = new Team("rgb(128,128,128)",new Controller(0),"")
 	neutralTeam.name = "" //force the neutral team to have no name
 	console.log(neutralTeam.name)
 	teams.push(neutralTeam);
@@ -556,7 +556,7 @@ LeaderBoard.prototype.getLeaders = function()
 	let allTeams = teams.slice(1);
 	allTeams.sort(function (a,b) //sort by unit capacity (develop a scoring system later?)
 	{
-		return a.controller.unitCapacity-b.controller.unitCapacity;
+		return b.controller.unitCapacity-a.controller.unitCapacity;
 	});
 	this.top10 = allTeams.slice(0,10);
 	//this.updateBoard();
@@ -860,6 +860,15 @@ PlayerController.prototype.sendPackets = function()
 		teamData.push({color:team.color,name:team.name})
 	}
 	this.client.emit("teams",teamData)
+	//transmit leaderboard data
+	let leaderData = []
+	for (let t in leaderBoard.top10)
+	{
+		let team = leaderBoard.top10[t]
+		leaderData.push({color:team.color,name:team.name,score:team.controller.unitCapacity})
+	}
+	this.client.emit("leaderboard",leaderData)
+	//output other packets
 	this.client.emit("data",this.packets)
 	this.packets = []
 	//this.client.emit("groups",movingUnits)

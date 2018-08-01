@@ -19,6 +19,10 @@
 
 Alpha:
 
+8/1/18(2nd release):
+*Fixed a bug where eliminating the neutral team results in a game crash
+*Fixed leaderboard functionality
+
 8/1/18:
 *Fixed a bug where a node could end up with negative units
 *Fixed a bug where units on uncontrolled nodes did not factor into client-side unit cap calculation
