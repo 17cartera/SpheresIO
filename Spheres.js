@@ -159,21 +159,18 @@ Node.prototype.drawObject = function(viewport)
 		let group = this.units[index];
 		group.updateUnitMap();
 		draw.fillStyle = teams[group.team].color;
-		if (true || graphics.zoomLevel < 2) //do not draw at high zoom level
+		for (let index = 0; index < group.unitMap.length; index += 1) 
 		{
-			for (let index = 0; index < group.unitMap.length; index += 1) 
-			{
-				let unitPos = group.unitMap[index];
-				let unitx = this.pos.x-viewport.x+(Math.cos(unitPos.angle)*this.size*unitPos.distance);
-				let unity = this.pos.y-viewport.y+(Math.sin(unitPos.angle)*this.size*unitPos.distance);
-				//draw.fillRect(unitx-2,unity-2,4,4); made smaller due to scale change
-				draw.fillRect(unitx-1,unity-1,2,2);
-			}
+			let unitPos = group.unitMap[index];
+			let unitx = this.pos.x-viewport.x+(Math.cos(unitPos.angle)*this.size*unitPos.distance);
+			let unity = this.pos.y-viewport.y+(Math.sin(unitPos.angle)*this.size*unitPos.distance);
+			//draw.fillRect(unitx-2,unity-2,4,4); made smaller due to scale change
+			draw.fillRect(unitx-1,unity-1,2,2);
 		}
-		let textDistance = this.size*2;
+		let textDistance = this.size*2+group.number.toString().length*4;
 		draw.fillText(group.number,
 		this.pos.x-viewport.x+(textDistance*Math.cos(numAngle)),
-		this.pos.y-viewport.y+(textDistance*Math.sin(numAngle))
+		this.pos.y-viewport.y+(textDistance*Math.sin(numAngle)+4)
 		);
 		numAngle += (2*Math.PI)/this.units.length;
 	}

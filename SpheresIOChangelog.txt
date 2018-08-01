@@ -4,12 +4,14 @@
 *Rarely, nodes can become stuck as neutral
 *Random colors can be too identical to each other
 *Double-clicking is nonfunctional
-*Client lag can result in moving groups appearing in an incorrect position
+*Client lag can result in moving groups appearing in an incorrect position (fixed?)
+--Still causes problems if client tabs out
+--Minor issue: slight delay between moving group arriving on client and node being updated
 
 -Todo list: 
-*Improve UI and unit selection hitboxes
+*Improve UI and unit selection hitboxes (done)
 *Update tutorial
-*Fix group travel speed (done)
+*Fix group travel speed (partially done)
 *Add handling for player disconnects
 
 -Ideas:
@@ -20,7 +22,9 @@ Alpha:
 8/1/18:
 *Fixed a bug where a node could end up with negative units
 *Changed moving groups to all operate off of a single timer
---Seems to have fixed lag with unit movement
+--Seems to have fixed laggy unit movement
+*Spaced out the unit text more to improve readability with high unit counts
+*Increased distance between nodes in map generation
 
 7/31/18:
 *Server now uses port 80 (default HTTP port) instead of port 3000

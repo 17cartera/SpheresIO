@@ -48,7 +48,7 @@ GameController.prototype.generateMap = function(height,width)
 		let potentialObstructions = gameMap.checkAllInRange(tempNode.pos,250);
 		for (let n in potentialObstructions) 
 		{
-			if (Position.getDistance(tempNode.pos,potentialObstructions[n].pos) <= (tempNode.size+potentialObstructions[n].size)*2)
+			if (Position.getDistance(tempNode.pos,potentialObstructions[n].pos) <= (tempNode.size+potentialObstructions[n].size)*2+40)
 				isClear = false;
 		}
 		//push the node
