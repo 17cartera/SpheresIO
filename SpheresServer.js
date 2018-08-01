@@ -455,13 +455,18 @@ MovingGroup.prototype.checkForAttrition = function()
 			nearFriendly = true;
 		}
 	}
-	if (!nearFriendly) //trigger attrition
+	let atritNumber = this.number
+	if (nearFriendly)
+	{
+		atritNumber -= MAX_UNITS_IN_GROUP
+	}
+	if (atritNumber > 0) //trigger attrition
 	{
 		//note: formula is currently inaccurate
 		//percentage of attrition per tick: (MOVE_SPEED/50)/ATRIT_RATE
 		let atritChance = (MOVE_SPEED/50)/ATRIT_RATE;
 		let losses = 0;
-		for (let x = 0; x < this.number; x++)
+		for (let x = 0; x < atritNumber; x++)
 		{
 			if (Math.random() < atritChance)
 			{
@@ -934,7 +939,7 @@ io.on('connection', function(client)
 })
 //load up the server
 initialize();
-server.listen(3000)
+server.listen(80)
 
 //adds the given data packet to all player objects
 function addPacket(data)

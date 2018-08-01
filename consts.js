@@ -1,6 +1,7 @@
 
 function exportConsts(scope)
 {
+    scope.SERVER_IP = "127.0.0.1"
     scope.SIZE_SCALE = 0.5 //general game size multiplier
     scope.CAPTURE_TIME = 3//5; //number of seconds it takes 10 units to capture a level 1 node
     scope.SPAWN_TIME = 2.5//5; //number of seconds it takes for a level 1 node to spawn a unit
@@ -21,6 +22,7 @@ function exportConsts(scope)
     scope.MAX_RANGE = 500*scope.SIZE_SCALE;//1000*scope.SIZE_SCALE; //maximum range of a movingUnit group (currently only used by AI)
     scope.CONTROL_RANGE = 500*scope.SIZE_SCALE; //range from each node before units suffer attrition
     scope.ATRIT_RATE = 1000*scope.SIZE_SCALE; //amount of pixels a group suffering attrition moves before suffering 50% losses
+    scope.MAX_UNITS_IN_GROUP = 100 //maximum units in a moving group before attrition is suffered
     scope.HASH_SIZE = MAX_RANGE/2; //size of each hash grid
     scope.fontSize = 16; //base font size
 }

@@ -21,7 +21,7 @@ var initialize = function()
 	console.log("beginning game");
 	document.getElementById("title").style.visibility = "hidden";
 	///new netcode elements
-	socket = io.connect('http://127.0.0.1:3000');
+	socket = io.connect('http://'+SERVER_IP+':80');
 	socket.on('connect', function(data) 
 	{
 		socket.emit('join', 'ClientStuff');
