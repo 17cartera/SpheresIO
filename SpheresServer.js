@@ -245,10 +245,15 @@ Node.prototype.addUnits = function(team,number)
 		if (group.team == team) 
 		{
 			group.number += number;
-			if (group.number == 0) 
+			if (group.number <= 0) //delete an index with no units
 			{
+				//log when negative units occur
+				if (group.number < 0)
+				{
+					console.log("Negative units detected")
+				}
 				this.units.splice(index,1);
-				if (this.team != group.team) teams[group.team].controller.removeOccupiedNode(this);//delete an index with no units
+				if (this.team != group.team) teams[group.team].controller.removeOccupiedNode(this);
 			}
 			isAdded = true;
 		}

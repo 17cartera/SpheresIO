@@ -6,22 +6,19 @@
 *Double-clicking is nonfunctional
 *Client lag can result in moving groups appearing in an incorrect position
 
--Bugs needing investigation:
-*-1 units appeared on a node
-*"Cannot read property number of undefined" crash in attack code
-
 -Todo list: 
-*Improve controls and UI
-*Optimization
---Use a better list structure for faster ID searching?
-*Balancing?
-*Special nodes
+*Improve UI and unit selection hitboxes
+*Update tutorial
+*Fix group travel speed
 
 -Ideas:
 *Calculate leaderboard server-side (increased bandwidth cost, but less client computation needed?)
 *Move all units on a single timer (reduces the truly excessive use of setTimeout)
 
 Alpha:
+
+8/1/18:
+*Fixed a bug where a node could end up with negative units
 
 7/31/18:
 *Server now uses port 80 (default HTTP port) instead of port 3000
