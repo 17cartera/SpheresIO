@@ -1,7 +1,6 @@
 
 function exportConsts(scope)
 {
-    scope.SERVER_IP = "127.0.0.1"
     scope.SIZE_SCALE = 0.5 //general game size multiplier
     scope.CAPTURE_TIME = 3//5; //number of seconds it takes 10 units to capture a level 1 node
     scope.SPAWN_TIME = 2.5//5; //number of seconds it takes for a level 1 node to spawn a unit

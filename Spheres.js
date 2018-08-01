@@ -21,7 +21,9 @@ var initialize = function()
 	console.log("beginning game");
 	document.getElementById("title").style.visibility = "hidden";
 	///new netcode elements
-	socket = io.connect('http://'+SERVER_IP+':80');
+	console.log(location.host)
+	socket = io.connect(location.host)
+	//socket = io.connect('http://'+SERVER_IP+':80');
 	socket.on('connect', function(data) 
 	{
 		socket.emit('join', 'ClientStuff');
@@ -702,7 +704,7 @@ PlayerController.prototype.getKeyboardInput = function(e)
 		}
 		break;
 		default:
-		console.log("Unidentified Key " + e.keyCode)
+		//console.log("Unidentified Key " + e.keyCode)
 		break;
 	}
 }
@@ -830,7 +832,7 @@ PlayerController.prototype.getMouseUp = function(e)
 				let unitsTransferred = Math.floor(otherNode.getUnitsOfTeam(this.team).number*(this.unitPercentage/100));
 				if (node != null && node != otherNode)
 				{
-					console.log("Moving Units")
+					//console.log("Moving Units")
 					//this.newGroups.push(this.moveUnits(otherNode,node,unitsTransferred)); //creates a new moving group and pushes it to newGroups
 					socket.emit("move",{otherNode:otherNode.id,node:node.id,unitsTransferred:unitsTransferred})
 				}
@@ -874,7 +876,6 @@ PlayerController.prototype.getDoubleClick = function(e)
 //updates the unit percentage
 PlayerController.prototype.changeUnitPercentage = function()
 {
-	console.log("Changing unit percentage")
 	let value = unitSlider.value;
 	this.unitPercentage = value;
 	unitValue.innerHTML = value + "%"
