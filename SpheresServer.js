@@ -7,7 +7,7 @@ var gameBoard; var graphics; var leaderBoard; //controller objects
 //var draw = canvas.getContext("2d"); //the drawing context used for draw actions
 var gameMap = new GameMap(); //an array of all nodes
 var movingUnits = []; //an array of all MovingUnit groups
-var teams = []; //a list of all teams
+var teams = {}; //a list of all teams
 var players = []; //lists the playerController for all non-bot players
 //event listener
 //var player;
@@ -29,7 +29,7 @@ function GameController()
 	let neutralTeam = new Team("rgb(128,128,128)",new Controller(0),"")
 	neutralTeam.name = "" //force the neutral team to have no name
 	console.log(neutralTeam.name)
-	teams.push(neutralTeam);
+	teams[0] = neutralTeam;
 	this.generateMap(MAP_SIZE,MAP_SIZE);
 	setInterval(gameTick,100); //ticks game updates
 	//occasionally spawn in new bots
@@ -70,9 +70,19 @@ GameController.prototype.generateMap = function(height,width)
 //spawns in a new player
 GameController.prototype.spawnNewPlayer = function(controller,name)
 {
-	let teamIndex = teams.length;
 	let team = new Team(generateRandomColor(),controller,name);
-	teams.push(team);
+	//find an index for the team
+	let teamIndex = 1, isIndexFound = false;
+	while (!isIndexFound)
+	{
+		if (teams[teamIndex] == undefined)
+			isIndexFound = true;
+		else
+			teamIndex++
+	}
+	controller.team = teamIndex
+	teams[teamIndex] = team;
+	addPacket({type:"addTeam",index:teamIndex,color:team.color,name:team.name})
 	let isValidLocationFound = false;
 	let node;
 	let counter = 0;
@@ -343,10 +353,10 @@ Node.prototype.capture = function()
 //method to properly change the team of a node
 Node.prototype.changeTeam = function(newTeam) 
 {
-	if (this.team != 0) {} //team 0 does not have a controller
+	if (this.team != '0') {} //team 0 does not have a controller
 	teams[this.team].controller.removeOccupiedNode(this);
 	this.team = newTeam;
-	if (newTeam != 0) {} //team 0 does not have a controller
+	if (newTeam != '0') {} //team 0 does not have a controller
 	teams[this.team].controller.addOccupiedNode(this);
 	addPacket({type:"capture",node:this.id,team:newTeam})
 }
@@ -553,12 +563,12 @@ function LeaderBoard()
 //get the leaders
 LeaderBoard.prototype.getLeaders = function() 
 {
-	let allActiveTeams = teams.slice(1);
+	let allActiveTeams = [];
 	//remove eliminated teams
-	for (let t in allActiveTeams)
+	for (let t in teams)
 	{
-		if (allActiveTeams[t] == undefined) //check if undefined
-			allActiveTeams.splice(t,1)
+		if (t != 0) //do not push neutral team
+			allActiveTeams.push(teams[t])
 	}
 	allActiveTeams.sort(function (a,b) //sort by unit capacity (develop a scoring system later?)
 	{
@@ -637,8 +647,12 @@ Controller.prototype.removeOccupiedNode = function(node)
 			//check to see if this team is eliminated
 			if (this.team != 0 && this.getTotalUnits() == 0 && this.occupiedNodes.length == 0) 
 			{
-				console.log("Player " + teams[this.team].name + " (" + this.team + ")" + " has been eliminated")
-				teams[this.team] = undefined
+				//console.log("Player " + teams[this.team].name + " (" + this.team + ")" + " has been eliminated")
+				//console.log(teams)
+				delete teams[this.team]
+				addPacket({type:"removeTeam",index:this.team})
+				//teams[this.team] = undefined
+				//console.log(teams)
 			}
 			break;
 		}
@@ -843,7 +857,10 @@ PlayerController.prototype.transferAllData = function()
 	for (let t in teams) //avoid transmitting the controller object due to circular reference with client object
 	{
 		let team = teams[t]
-		teamData.push({color:team.color,name:team.name})
+		if (team == undefined)
+			teamData.push(undefined)
+		else
+			teamData.push({index:t,color:team.color,name:team.name})
 	}
 	this.client.emit("teams",teamData)
 	//transmit all nodes
@@ -855,14 +872,18 @@ PlayerController.prototype.transferAllData = function()
 PlayerController.prototype.sendPackets = function()
 {	
 	//transmit teams (temp code)
+	/*
 	let teamData = []
 	for (let t in teams) //avoid transmitting the controller object due to circular reference with client object
 	{
-		let team = teams[t]
-		if (team != undefined)
-			teamData.push({color:team.color,name:team.name})
+		let team = teams[t]		
+		if (team == undefined)
+			teamData.push(undefined)
+		else
+			teamData.push({index:t,color:team.color,name:team.name})
 	}
 	this.client.emit("teams",teamData)
+	*/
 	//transmit leaderboard data
 	/*
 	let leaderData = []

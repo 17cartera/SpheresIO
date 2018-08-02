@@ -8,7 +8,7 @@ var unitSlider = document.getElementById("unitSlider") //slider for the percenta
 var unitValue = document.getElementById("unitValue") //value for unitSlider
 var gameMap = new GameMap(); //an array of all nodes
 var movingUnits = []; //an array of all MovingUnit groups
-var teams = []; //a list of all teams
+var teams = {}; //a list of all teams
 //teams.push(new Team("rgb(128,128,128)",new Controller())); //neutral team
 var playerNameIndex = undefined; //the index of the player's team
 //event listener
@@ -901,17 +901,18 @@ function getObjectById(id)
 //netcode elements
 function updateTeams(data)
 {
+	console.log(data)
 	for (let n in data)
 	{
 		let entry = data[n]
-		let newTeam = new Team(entry.color,new Controller(),entry.name)
+		//let newTeam = new Team(entry.color,new Controller(),entry.name)
 		//test to ensure the teams are not duplicated
-		if (teams[n] == undefined)
+		if (teams[entry.index] == undefined)
 		{
 			//console.log("New Team Detected")
 			let entry = data[n]
 			let newTeam = new Team(entry.color,new Controller(),entry.name)
-			teams.push(newTeam)
+			teams[entry.index] = newTeam
 		}
 		else
 		{
@@ -919,7 +920,7 @@ function updateTeams(data)
 		}
 	}
 	if (player.team != undefined && player.team != 0)
-	teams[player.team].controller = player
+		teams[player.team].controller = player
 }
 function updateGameMap(data)
 {
@@ -1043,6 +1044,14 @@ function processPackets(data)
 			{
 				group.number -= entry.number
 			}
+			break;
+			case "addTeam": //a new team has spawned in
+			console.log("Adding Team")
+			teams[entry.index] = new Team(entry.color,new Controller(),entry.name);
+			break;
+			case "removeTeam": //a team has been eliminated
+			console.log("Removing Team")
+			setTimeout(function() {delete teams[entry.index];},1000) //remove after a delay to prevent errors
 			break;
 		}
 	}
