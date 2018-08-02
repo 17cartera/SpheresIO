@@ -698,7 +698,7 @@ function BotController(team)
 	this.expansionWeight = 0.5+Math.random(); //weight of expanding and gaining territory
 	this.attackWeight = 0.5+Math.random(); //weight of attacking and eliminating other players
 	this.defenseWeight = 0.5+Math.random(); //weight of protecting nodes and units
-	this.reaction = 0.01//0.02+Math.random()*0.08; //chance of the AI acting every AI tick
+	this.reaction = 0.02+Math.random()*0.08; //chance of the AI acting every AI tick
 }
 //main AI loop
 BotController.prototype.runAI = function() 
