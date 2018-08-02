@@ -7,6 +7,8 @@
 --Still causes problems if client tabs out
 --Minor issue: slight delay between moving group arriving on client and node being updated (ping-based?)
 *Attrition formula is incorrect
+*Client is not properly disconnected, and may thus send invalid data causing a crash
+--Need better malformed packet protection
 
 -Todo list: 
 *Improve UI and unit selection hitboxes (done)
@@ -22,6 +24,7 @@ Alpha:
 8/1/18(2nd release):
 *Fixed a bug where eliminating the neutral team results in a game crash
 *Fixed leaderboard functionality
+*Eliminated players are now properly removed from the game
 
 8/1/18:
 *Fixed a bug where a node could end up with negative units

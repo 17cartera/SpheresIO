@@ -9,9 +9,9 @@ function exportConsts(scope)
     scope.FIGHT_SPAWN_MULTIPLIER = 2; //multiplier to spawning times while a node is in combat
     scope.MOVE_SPEED = 250*scope.SIZE_SCALE; //number of pixels moved in a second
     /*small map*/
-    scope.MAP_SIZE = 5000*scope.SIZE_SCALE; //height and width of the map
-    scope.MIN_NODES_TO_GENERATE = 100; //minimum amount of nodes generated
-    scope.MAX_NODES_TO_GENERATE = 150; //maximum amount of nodes generated
+    scope.MAP_SIZE = 1000*scope.SIZE_SCALE//5000*scope.SIZE_SCALE; //height and width of the map
+    scope.MIN_NODES_TO_GENERATE = 10//100; //minimum amount of nodes generated
+    scope.MAX_NODES_TO_GENERATE = 10//150; //maximum amount of nodes generated
     /*large map
     scope.MAP_SIZE = 10000*scope.SIZE_SCALE; //height and width of the map
     scope.MIN_NODES_TO_GENERATE = 400; //minimum amount of nodes generated

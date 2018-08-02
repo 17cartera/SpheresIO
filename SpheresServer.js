@@ -553,32 +553,32 @@ function LeaderBoard()
 //get the leaders
 LeaderBoard.prototype.getLeaders = function() 
 {
-	let allTeams = teams.slice(1);
-	allTeams.sort(function (a,b) //sort by unit capacity (develop a scoring system later?)
+	let allActiveTeams = teams.slice(1);
+	//remove eliminated teams
+	for (let t in allActiveTeams)
+	{
+		if (allActiveTeams[t] == undefined) //check if undefined
+			allActiveTeams.splice(t,1)
+	}
+	allActiveTeams.sort(function (a,b) //sort by unit capacity (develop a scoring system later?)
 	{
 		return b.controller.unitCapacity-a.controller.unitCapacity;
 	});
-	this.top10 = allTeams.slice(0,10);
-	//this.updateBoard();
-	setTimeout(function(_this){_this.getLeaders();},1000,this); //automatically recalculate leaders every 5 seconds
-}
-//update the leaderboard
-LeaderBoard.prototype.updateBoard = function() 
-{
-	for (let index = 1; index <= 10; index++)
+	this.top10 = allActiveTeams.slice(0,10);
+	//transmit leaderboard data to players
+	let leaderData = []
+	for (let t in leaderBoard.top10)
 	{
-		let element = document.getElementById(index); let team = this.top10[index-1];
-		if (team !== undefined)
-		{
-			element.style.visibility = "visible";
-			element.innerHTML = team.name;
-			element.style.color = team.color;
-		}
-		else
-		{
-			element.style.visibility = "hidden"; //hide excess leaderboard elements
-		}
+		let team = leaderBoard.top10[t]
+		if (team == undefined) //second check if undefined due to crashes here
+			continue;
+		leaderData.push({color:team.color,name:team.name,score:team.controller.unitCapacity})
 	}
+	for (let p in players)
+	{
+		players[p].client.emit("leaderboard",leaderData)
+	}
+	setTimeout(function(_this){_this.getLeaders();},1000,this); //automatically recalculate leaders every 5 seconds
 }
 
 ///object for a team
@@ -634,11 +634,13 @@ Controller.prototype.removeOccupiedNode = function(node)
 		if (this.occupiedNodes[n] == node) 
 		{
 			this.occupiedNodes.splice(n,1);
-			if (this.occupiedNodes.length == 0) //if the controller has no nodes, it is eliminated
+			//check to see if this team is eliminated
+			if (this.team != 0 && this.getTotalUnits() == 0 && this.occupiedNodes.length == 0) 
 			{
 				console.log("Player " + teams[this.team].name + " (" + this.team + ")" + " has been eliminated")
+				teams[this.team] = undefined
 			}
-			return;
+			break;
 		}
 	}
 	this.calculateUnitCapacity();
@@ -655,7 +657,7 @@ Controller.prototype.calculateUnitCapacity = function()
 	}
 	return this.unitCapacity;
 }
-//sums up all units in all nodes (should be using selectedNodes)
+//sums up all units in all nodes
 Controller.prototype.getTotalUnits = function() 
 {
 	let totalUnits = 0;
@@ -857,10 +859,12 @@ PlayerController.prototype.sendPackets = function()
 	for (let t in teams) //avoid transmitting the controller object due to circular reference with client object
 	{
 		let team = teams[t]
-		teamData.push({color:team.color,name:team.name})
+		if (team != undefined)
+			teamData.push({color:team.color,name:team.name})
 	}
 	this.client.emit("teams",teamData)
 	//transmit leaderboard data
+	/*
 	let leaderData = []
 	for (let t in leaderBoard.top10)
 	{
@@ -868,6 +872,7 @@ PlayerController.prototype.sendPackets = function()
 		leaderData.push({color:team.color,name:team.name,score:team.controller.unitCapacity})
 	}
 	this.client.emit("leaderboard",leaderData)
+	*/
 	//output other packets
 	this.client.emit("data",this.packets)
 	this.packets = []
