@@ -25,6 +25,7 @@ Alpha:
 *Fixed a bug where eliminating the neutral team results in a game crash
 *Fixed leaderboard functionality
 *Eliminated players are now properly removed from the game
+--Refactored team code to account for this
 
 8/1/18:
 *Fixed a bug where a node could end up with negative units
