@@ -1,6 +1,7 @@
 
 -Known Bugs/issues:
 *Rarely, nodes can become stuck as neutral
+--Likely due to poor handling of change in captureTeam?
 *Random colors can be too identical to each other
 *Double-clicking is nonfunctional
 *Client lag can result in moving groups appearing in an incorrect position (fixed?)
@@ -9,6 +10,7 @@
 *Attrition formula is incorrect
 *Client is not properly disconnected, and may thus send invalid data causing a crash
 --Need better malformed packet protection
+*Eliminated players may cause a client crash if they were 
 
 -Todo list: 
 *Improve UI and unit selection hitboxes (done)
@@ -20,6 +22,11 @@
 *Calculate leaderboard server-side (increased bandwidth cost, but less client computation needed?)
 
 Alpha:
+
+8/2/18:
+*Fixed client-side unit cap indicator (again)
+*Added error handling for when players being eliminated still have something on the field (somehow)
+*Added verification of move order packets
 
 8/1/18(2nd release):
 *Fixed a bug where eliminating the neutral team results in a game crash

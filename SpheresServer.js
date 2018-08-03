@@ -912,6 +912,13 @@ PlayerController.prototype.move = function(data)
 	//get the node and othernode
 	let otherNode = getObjectById(data.otherNode)
 	let node = getObjectById(data.node)
+	//verify that data is correct
+	if (otherNode == undefined || node == undefined)
+	{
+		console.log("Invalid Move Packet Detected")
+		return;
+	}
+	//transmit the move order
 	this.moveUnits(otherNode,node,data.unitsTransferred)
 }
 

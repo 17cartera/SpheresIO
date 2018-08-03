@@ -146,6 +146,7 @@ function Node(position,level)
 Node.prototype.drawObject = function(viewport) 
 {
 	//draw the main node
+	if (teams[this.team] == undefined) {console.log("Invalid Node Team");return;}//error handling for missing team
 	draw.fillStyle = teams[this.team].color;
 	draw.beginPath();
 	draw.arc(this.pos.x-viewport.x,this.pos.y-viewport.y,this.size,0,2*Math.PI,false);
@@ -201,6 +202,7 @@ Node.prototype.drawObject = function(viewport)
 	if (this.capturePoints != 0) 
 	{
 		if (this.team != 0) draw.strokeStyle = teams[0].color;
+		else if (teams[this.captureTeam] == undefined) {console.log("Invalid Capture Team");return;}//error handling for missing team
 		else draw.strokeStyle = teams[this.captureTeam].color;
 		draw.lineWidth = 4;
 		draw.beginPath();
@@ -1047,7 +1049,10 @@ function processPackets(data)
 			break;
 			case "addTeam": //a new team has spawned in
 			console.log("Adding Team")
-			teams[entry.index] = new Team(entry.color,new Controller(),entry.name);
+			if (entry.index == player.team)
+				teams[entry.index] = new Team(entry.color,player,entry.name);
+			else
+				teams[entry.index] = new Team(entry.color,new Controller(),entry.name);			
 			break;
 			case "removeTeam": //a team has been eliminated
 			console.log("Removing Team")
