@@ -38,11 +38,16 @@ function GameController()
 //generates a map
 GameController.prototype.generateMap = function(height,width) 
 {
+	//start with special nodes
+	let centerNode = new FactoryNode(new Position(width/2,height/2))
+	centerNode.addUnits(centerNode.team,200);
+	gameMap.addObject(centerNode);
+
 	let n = 0; let generatedNodes = MIN_NODES_TO_GENERATE+Math.floor(Math.random()*(MAX_NODES_TO_GENERATE-MIN_NODES_TO_GENERATE));
 	//adds nodes only where there is empty space available;
 	while (n < generatedNodes) 
 	{
-		let tempNode = new Node(new Position(Math.random()*height,Math.random()*width),1+Math.floor(Math.random()*5));
+		let tempNode = new Node(new Position(Math.random()*width,Math.random()*height),1+Math.floor(Math.random()*5));
 		//determine if there is sufficient space between this node and all other nodes
 		let isClear = true;
 		let potentialObstructions = gameMap.checkAllInRange(tempNode.pos,250);
@@ -281,6 +286,7 @@ Node.prototype.spawn = function()
 		this.addUnits(this.team,1);
 		this.spawning = true;
 		let delay = (SPAWN_TIME*1000)/this.level;
+		delay *= 1+teams[this.team].controller.getTotalUnits()/UNITS_PER_SPAWN_MULTIPLIER;
 		if (this.fighting) delay *= FIGHT_SPAWN_MULTIPLIER; //units take twice as long to spawn while in combat
 		setTimeout(function(_this){_this.spawn();},delay,this);
 	}
@@ -353,11 +359,11 @@ Node.prototype.capture = function()
 //method to properly change the team of a node
 Node.prototype.changeTeam = function(newTeam) 
 {
-	if (this.team != '0') {} //team 0 does not have a controller
-	teams[this.team].controller.removeOccupiedNode(this);
+	if (this.team != 0) 
+	{teams[this.team].controller.removeOccupiedNode(this);} //team 0 does not have a controller
 	this.team = newTeam;
-	if (newTeam != '0') {} //team 0 does not have a controller
-	teams[this.team].controller.addOccupiedNode(this);
+	if (this.team != 0) 
+	{teams[this.team].controller.addOccupiedNode(this);} //team 0 does not have a controller
 	addPacket({type:"capture",node:this.id,team:newTeam})
 }
 //combat mechanics system (ported from BattleFunction program)
@@ -399,15 +405,6 @@ Node.prototype.fight = function()
 		if (x != index)
 		{
 			this.addUnits(unitNums[x].team,-1)
-			//unitNums[x].number--;
-			//if index is zero, remove it
-			/*
-			if (unitNums[x].number <= 0) 
-			{
-				teams[unitNums[x].team].controller.removeOccupiedNode(this);
-				unitNums.splice(x,1);
-			}
-			*/
 		}
 	}
 	//continue fighting if a fight is still needed 
@@ -422,6 +419,15 @@ Node.prototype.fight = function()
 		this.fighting = false;
 	}
 	return unitNums; //returns unitNums if needed
+}
+//special node type: supernode
+FactoryNode.prototype = new Node();
+FactoryNode.prototype.constructor = FactoryNode;
+function FactoryNode(position)
+{
+	Node.call(this,position,10);
+	this.size = 200*SIZE_SCALE
+	console.log(this)
 }
 
 //an object for a moving group of units
@@ -602,7 +608,7 @@ function Team(color,controller,name)
 ///main controller class, inherited by subclasses
 function Controller(team) 
 {
-	this.occupiedNodes = []; //list of all nodes with this team's units on them
+	this.occupiedNodes = []; //list of all nodes with this team's units on them, or that are owned by this team
 	this.team = team; //ID of this controller's team
 	this.unitCapacity = 0; //this team's unit capacity
 }
@@ -647,7 +653,7 @@ Controller.prototype.removeOccupiedNode = function(node)
 			//check to see if this team is eliminated
 			if (this.team != 0 && this.getTotalUnits() == 0 && this.occupiedNodes.length == 0) 
 			{
-				//console.log("Player " + teams[this.team].name + " (" + this.team + ")" + " has been eliminated")
+				console.log("Player " + teams[this.team].name + " (" + this.team + ")" + " has been eliminated")
 				//console.log(teams)
 				delete teams[this.team]
 				addPacket({type:"removeTeam",index:this.team})
@@ -827,27 +833,23 @@ function PlayerController(team,client)
 	this.client = client //connection data for this client
 	this.packets = []; //data packets to send to the client
 	//set up to transfer data to the client
-	this.transferAllData()
-	setInterval(function(_this){_this.sendPackets();},10,this); //send data to client
+	this.transferAllData() //send all data to allow client to load the map
+	setInterval(function(_this){_this.sendPackets();},10,this); //send packet set to the client
 	//set up to receive data from the client
 	this.client.player = this
-	this.client.spawn = function(data)
-	{
-		this.player.spawn(data)
-	}
-	this.client.on('spawn', function(data) 
+	this.client.on('spawn', function(data) //the client is requesting to spawn in
 	{
 		console.log("Spawning New Player")
-		this.spawn(data)
+		this.player.spawn(data)
 	});
-	this.client.move = function(data)
+	this.client.on('move', function(data) //the client is sending a move order
 	{
 		this.player.move(data)
-	}
-	this.client.on('move', function(data)
+	});
+	this.client.on('disconnect', function(data) //client has disconnected
 	{
-		this.move(data)
-	})
+		this.player.disconnect(data)
+	});
 }
 //transfer all map data to the client
 PlayerController.prototype.transferAllData = function()
@@ -902,7 +904,7 @@ PlayerController.prototype.sendPackets = function()
 //initiate the spawning process
 PlayerController.prototype.spawn = function(name)
 {
-	this.team = teams.length;
+	//this.team = teams.length;
 	let spawnPoint = gameBoard.spawnNewPlayer(this,name);
 	this.client.emit("spawnsuccess",{team:this.team,spawnPoint:spawnPoint})
 }
@@ -921,9 +923,37 @@ PlayerController.prototype.move = function(data)
 	//transmit the move order
 	this.moveUnits(otherNode,node,data.unitsTransferred)
 }
+//handle player disconnect
+PlayerController.prototype.disconnect = function(data)
+{
+	console.log("Player " + teams[this.team].name + " (" + this.team + ")" + " has disconnected")
+	for (let n = movingUnits.length-1; n >= 0; n--) //kill moving units
+	{
+		let group = movingUnits[n]
+		if (group.team == this.team)
+		{
+			addPacket({type:"groupLoss",id:group.id,number:group.number}) //send deletion to client
+			movingUnits.splice(n,1) //delete the moving group
+		}
+	}
+	//revert all of this team's nodes and units to neutral
+	for (let n = this.occupiedNodes.length-1; n >= 0; n--)
+	{
+		let node = this.occupiedNodes[n]
+		let units = node.getUnitsOfTeam(this.team).number
+		if (units > 0) //transform all units to
+		{
+			node.addUnits(this.team,-units)
+			node.addUnits(0,units)
+		}
+		if (node.team == this.team)
+			node.changeTeam(0)
+	}
+	//delete players[this.team]
+}
 
 ///ID generation
-let lastID = 0;
+var lastID = 0;
 function generateNodeID()
 {
 	lastID++;

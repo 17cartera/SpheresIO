@@ -23,6 +23,12 @@
 
 Alpha:
 
+8/4/18:
+*Added server-side disconnect handling (players that disconnect have all nodes reverted to neutral).
+*Added client-side disconnect/elimination handling (returned to menu screen).
+*A player's units now take longer to spawn if they control a large amount of units.
+*Added a special surprise to the center of the map.
+
 8/2/18:
 *Fixed client-side unit cap indicator (again)
 *Added error handling for when players being eliminated still have something on the field (somehow)

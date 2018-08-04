@@ -63,6 +63,7 @@ h3, ul
 }
 #popCounter 
 {
+	visibility: hidden;
 	color: white;
 	text-align: center;
 	overflow:hidden;
@@ -75,6 +76,7 @@ h3, ul
 }
 #leaderboard 
 {
+	visibility: hidden;
 	color: white;
 	text-align: left;
 	overflow:hidden;
@@ -84,6 +86,10 @@ h3, ul
 	right: 0%;
 	width: 12em;
 	height: 18em;
+}
+#disconnected
+{
+	display:none;
 }
 #game 
 {
@@ -116,6 +122,9 @@ h3, ul
 	<input type="button" value = "How to play" onclick = "document.getElementById('howToPlay').style.visibility = 'visible'"></input>
 	<input type="button" value = "Settings" onclick = "document.getElementById('settings').style.visibility = 'visible'"></input>
 	-->
+	<div id = "disconnected">
+		<h2>You have disconnected from the server. Please reload and try again.</h2>
+	</div>
 	<div id = "howToPlay">
 		<h3> How to Play: </h3> 
 		<ul>

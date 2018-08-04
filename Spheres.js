@@ -20,13 +20,21 @@ var initialize = function()
 {
 	console.log("beginning game");
 	document.getElementById("title").style.visibility = "hidden";
+	document.getElementById("leaderboard").style.visibility = "visible";
+	document.getElementById("popCounter").style.visibility = "visible";
 	///new netcode elements
 	socket = io.connect(location.host)
 	//socket = io.connect('http://'+SERVER_IP+':80');
 	socket.on('connect', function(data) 
 	{
+		console.log("Client connected");
 		socket.emit('join', 'ClientStuff');
 	});
+	socket.on('disconnect', function(data)
+	{
+		console.log("Client disconnected");
+		handleDisconnect()
+	})
 	socket.on('teams', function(data)
 	{
 		updateTeams(data)
@@ -272,6 +280,7 @@ function MovingGroup(team,number,startNode,endNode)
 }
 MovingGroup.prototype.drawObject = function(viewport) 
 {
+	if (teams[this.team] == undefined) {console.log("Invalid Moving Group Team");return;}
 	//draws a cloud of units
 	draw.fillStyle = teams[this.team].color;
 	if (true || graphics.zoomLevel < 2)
@@ -1036,8 +1045,8 @@ function processPackets(data)
 			movingUnits.push(newGroup)
 			break;
 			case "groupLoss": //a moving group has lost units due to attrition
-			let group;
-			for (let u in movingUnits)
+			let group; let u;
+			for (u in movingUnits)
 			{
 				if (movingUnits[u].id == entry.id)
 					group = movingUnits[u]
@@ -1045,6 +1054,8 @@ function processPackets(data)
 			if (group != undefined)
 			{
 				group.number -= entry.number
+				if (group.number <= 0) //delete the moving group if it is reduced to 0 units
+					delete movingUnits[u]
 			}
 			break;
 			case "addTeam": //a new team has spawned in
@@ -1073,4 +1084,10 @@ function completeSpawn(data)
 	//reset data for the spawn point
 	let spawnNode = getObjectById(data.spawnPoint.id)
 	spawnNode.capturePoints = 0; spawnNode.captureTeam = 0; spawnNode.units = [];
+}
+function handleDisconnect(data)
+{
+	document.getElementById("title").style.visibility = "visible";
+	document.getElementById("disconnected").style.display = "inline";
+	document.getElementById("howToPlay").style.visibility = "hidden";
 }
