@@ -281,18 +281,24 @@ Node.prototype.addUnits = function(team,number)
 //spawns a unit at this node if conditions are right 
 Node.prototype.spawn = function() 
 {
+	this.spawning = true;
+	let delay = (SPAWN_TIME*1000)/this.level;
+	delay *= 1+teams[this.team].controller.getTotalUnits()/UNITS_PER_SPAWN_MULTIPLIER;
+	if (this.fighting) delay *= FIGHT_SPAWN_MULTIPLIER; //units take twice as long to spawn while in combat
 	if (!teams[this.team].controller.isCapacityReached() && (this.getUnitsOfTeam(this.team).number != 0 || this.units.length == 0)) 
 	{
 		this.addUnits(this.team,1);
+		/*
 		this.spawning = true;
 		let delay = (SPAWN_TIME*1000)/this.level;
 		delay *= 1+teams[this.team].controller.getTotalUnits()/UNITS_PER_SPAWN_MULTIPLIER;
 		if (this.fighting) delay *= FIGHT_SPAWN_MULTIPLIER; //units take twice as long to spawn while in combat
+		*/
 		setTimeout(function(_this){_this.spawn();},delay,this);
 	}
 	else 
 	{
-		this.spawning = false;
+		setTimeout(function(_this){_this.spawning = false;},delay,this);
 	}
 }
 //capturing function
@@ -427,7 +433,6 @@ function FactoryNode(position)
 {
 	Node.call(this,position,10);
 	this.size = 200*SIZE_SCALE
-	console.log(this)
 }
 
 //an object for a moving group of units
@@ -926,7 +931,10 @@ PlayerController.prototype.move = function(data)
 //handle player disconnect
 PlayerController.prototype.disconnect = function(data)
 {
-	console.log("Player " + teams[this.team].name + " (" + this.team + ")" + " has disconnected")
+	if (teams[this.team] != undefined)
+		console.log("Player " + teams[this.team].name + " (" + this.team + ")" + " has disconnected")
+	else
+		console.log("Player " + " (" + this.team + ")" + " has disconnected")
 	for (let n = movingUnits.length-1; n >= 0; n--) //kill moving units
 	{
 		let group = movingUnits[n]

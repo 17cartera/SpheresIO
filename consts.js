@@ -3,7 +3,7 @@ function exportConsts(scope)
 {
     scope.SIZE_SCALE = 0.5; //general game size multiplier
     scope.CAPTURE_TIME = 3; //number of seconds it takes 10 units to capture a level 1 node
-    scope.SPAWN_TIME = 2//2.5; //number of seconds it takes for a level 1 node to spawn a unit
+    scope.SPAWN_TIME = 4//2.5; //number of seconds it takes for a level 1 node to spawn a unit
     scope.UNITS_PER_LEVEL = 10; //population capacity granted for each level
     scope.FIGHT_TIME = 0.8; //amount of time between each round of fight with 10 units
     scope.FIGHT_SPAWN_MULTIPLIER = 2; //multiplier to spawning times while a node is in combat

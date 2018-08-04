@@ -23,6 +23,10 @@
 
 Alpha:
 
+8/4/18(2nd release):
+*Fixed an error in spawning calculations that could result in players being stuck at popcap
+*Significantly reduced spawning rate to make killing units more relevant
+
 8/4/18:
 *Added server-side disconnect handling (players that disconnect have all nodes reverted to neutral).
 *Added client-side disconnect/elimination handling (returned to menu screen).
