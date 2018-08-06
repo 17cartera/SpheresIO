@@ -25,11 +25,12 @@ function exportConsts(scope)
     scope.UNITS_PER_SPAWN_MULTIPLIER = 500; //number of units at which base spawn times are doubled
     scope.HASH_SIZE = MAX_RANGE/2; //size of each hash grid
     scope.fontSize = 16; //base font size
-    /*testing config*/
+    /*testing config
     scope.MAP_SIZE = 1000;
     scope.MIN_NODES_TO_GENERATE = 10;
     scope.MAX_NODES_TO_GENERATE = 10;
     scope.TEAMS_TO_GENERATE = 0;
+    */
 }
 if (typeof module === 'undefined')
     exportConsts(window)
