@@ -288,12 +288,6 @@ Node.prototype.spawn = function()
 	if (!teams[this.team].controller.isCapacityReached() && (this.getUnitsOfTeam(this.team).number != 0 || this.units.length == 0)) 
 	{
 		this.addUnits(this.team,1);
-		/*
-		this.spawning = true;
-		let delay = (SPAWN_TIME*1000)/this.level;
-		delay *= 1+teams[this.team].controller.getTotalUnits()/UNITS_PER_SPAWN_MULTIPLIER;
-		if (this.fighting) delay *= FIGHT_SPAWN_MULTIPLIER; //units take twice as long to spawn while in combat
-		*/
 		setTimeout(function(_this){_this.spawn();},delay,this);
 	}
 	else 
@@ -426,13 +420,21 @@ Node.prototype.fight = function()
 	}
 	return unitNums; //returns unitNums if needed
 }
-//special node type: supernode
+//special node type: factory, high production unless fighting
 FactoryNode.prototype = new Node();
 FactoryNode.prototype.constructor = FactoryNode;
 function FactoryNode(position)
 {
 	Node.call(this,position,10);
-	this.size = 200*SIZE_SCALE
+	this.size = 150*SIZE_SCALE;
+	this.nodeType = "factory";
+}
+FactoryNode.prototype.spawn = function() //factory nodes do not spawn if in combat
+{
+	if(!this.fighting)
+		Node.prototype.spawn.call(this)
+	else
+		this.spawning = false;
 }
 
 //an object for a moving group of units
@@ -445,7 +447,6 @@ function MovingGroup(team,number,startNode,endNode)
 	this.endNode = endNode;
 	this.pos = new Position(startNode.pos.x,startNode.pos.y);
 	this.direction = Position.getDirection(this.startNode.pos,this.endNode.pos);
-	//setTimeout(function(_this){_this.move(_this.startNode.size);},250,this); //move after a short delay for lag compensation
 }
 //moves the group towards its destination
 MovingGroup.prototype.move = function(dis) 
@@ -468,8 +469,6 @@ MovingGroup.prototype.move = function(dis)
 	{
 		//check for attrition
 		this.checkForAttrition()
-		//set a timer for the next move
-		//setTimeout(function(_this){_this.move(MOVE_SPEED/50);},20,this);
 	}
 }
 //checks for attrition
@@ -732,7 +731,6 @@ BotController.prototype.runAI = function()
 	this.getData();
 	//assign values
 	this.assignValues();
-	//graphics.AItargets = this.availableMoves; //test feature
 	if (Math.random() <= this.reaction && this.occupiedNodes.length != 0) 
 	{
 

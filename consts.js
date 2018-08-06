@@ -6,7 +6,7 @@ function exportConsts(scope)
     scope.SPAWN_TIME = 4//2.5; //number of seconds it takes for a level 1 node to spawn a unit
     scope.UNITS_PER_LEVEL = 10; //population capacity granted for each level
     scope.FIGHT_TIME = 0.8; //amount of time between each round of fight with 10 units
-    scope.FIGHT_SPAWN_MULTIPLIER = 2; //multiplier to spawning times while a node is in combat
+    scope.FIGHT_SPAWN_MULTIPLIER = 1; //multiplier to spawning times while a node is in combat
     scope.MOVE_SPEED = 250*scope.SIZE_SCALE; //number of pixels moved in a second
     /*small map*/
     scope.MAP_SIZE = 5000*scope.SIZE_SCALE; //height and width of the map
@@ -25,6 +25,11 @@ function exportConsts(scope)
     scope.UNITS_PER_SPAWN_MULTIPLIER = 500; //number of units at which base spawn times are doubled
     scope.HASH_SIZE = MAX_RANGE/2; //size of each hash grid
     scope.fontSize = 16; //base font size
+    /*testing config*/
+    scope.MAP_SIZE = 1000;
+    scope.MIN_NODES_TO_GENERATE = 10;
+    scope.MAX_NODES_TO_GENERATE = 10;
+    scope.TEAMS_TO_GENERATE = 0;
 }
 if (typeof module === 'undefined')
     exportConsts(window)

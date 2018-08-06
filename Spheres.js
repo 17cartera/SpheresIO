@@ -155,10 +155,7 @@ Node.prototype.drawObject = function(viewport)
 {
 	//draw the main node
 	if (teams[this.team] == undefined) {console.log("Invalid Node Team");return;}//error handling for missing team
-	draw.fillStyle = teams[this.team].color;
-	draw.beginPath();
-	draw.arc(this.pos.x-viewport.x,this.pos.y-viewport.y,this.size,0,2*Math.PI,false);
-	draw.fill();
+	this.drawBody(viewport)
 	//show player name above the node
 	if (this.team != 0)
 	{
@@ -218,6 +215,14 @@ Node.prototype.drawObject = function(viewport)
 		draw.stroke();
 	}
 }
+//draw function for standard node  body (special nodes overwrite this)
+Node.prototype.drawBody = function(viewport)
+{
+	draw.fillStyle = teams[this.team].color;
+	draw.beginPath();
+	draw.arc(this.pos.x-viewport.x,this.pos.y-viewport.y,this.size,0,2*Math.PI,false);
+	draw.fill();
+}
 //gets the unit group for all units of the particular team
 Node.prototype.getUnitsOfTeam = function(team)
 {
@@ -243,6 +248,7 @@ return sum;
 //adds (or removes if parameter is negative) units to the node
 Node.prototype.addUnits = function(team,number) 
 {
+	if (teams[team] == undefined) {console.log("Attempting to add units to invalid team");return;}
 	let isAdded = false;
 	for (let index in this.units) 
 	{
@@ -253,7 +259,7 @@ Node.prototype.addUnits = function(team,number)
 			if (group.number <= 0) 
 			{
 				this.units.splice(index,1);
-				if (this.team != group.team) teams[group.team].controller.removeOccupiedNode(this);//delete an index with no units
+				if (this.team != group.team) teams[team].controller.removeOccupiedNode(this);//delete an index with no units
 			}
 			isAdded = true;
 		}
@@ -263,6 +269,29 @@ Node.prototype.addUnits = function(team,number)
 		this.units.push(new Units(team,number));
 		teams[team].controller.addOccupiedNode(this);
 	}
+}
+//special node type: factory, high production unless fighting
+FactoryNode.prototype = new Node();
+FactoryNode.prototype.constructor = FactoryNode;
+function FactoryNode(position)
+{
+	Node.call(this,position,10);
+	this.size = 150*SIZE_SCALE;
+	this.nodeType = "factory";
+}
+//draws a hexagon
+FactoryNode.prototype.drawBody = function(viewport)
+{
+	draw.fillStyle = teams[this.team].color;
+	draw.beginPath();
+	//draw.arc(this.pos.x-viewport.x,this.pos.y-viewport.y,this.size,0,2*Math.PI,false);
+	draw.moveTo(this.pos.x-viewport.x+this.size,this.pos.y-viewport.y)
+	draw.lineTo(this.pos.x-viewport.x+this.size/2,this.pos.y-viewport.y-this.size*0.866)
+	draw.lineTo(this.pos.x-viewport.x-this.size/2,this.pos.y-viewport.y-this.size*0.866)
+	draw.lineTo(this.pos.x-viewport.x-this.size,this.pos.y-viewport.y)
+	draw.lineTo(this.pos.x-viewport.x-this.size/2,this.pos.y-viewport.y+this.size*0.866)
+	draw.lineTo(this.pos.x-viewport.x+this.size/2,this.pos.y-viewport.y+this.size*0.866)
+	draw.fill();
 }
 
 //an object for a moving group of units
@@ -275,12 +304,11 @@ function MovingGroup(team,number,startNode,endNode)
 	this.endNode = endNode;
 	this.pos = new Position(startNode.pos.x,startNode.pos.y);
 	this.direction = Position.getDirection(this.startNode.pos,this.endNode.pos);
-	//this.move(this.startNode.size); //start moving when spawned
-	//setTimeout(function(_this){_this.move(_this.startNode.size);},250,this);
 }
 MovingGroup.prototype.drawObject = function(viewport) 
 {
-	if (teams[this.team] == undefined) {console.log("Invalid Moving Group Team");return;}
+	if (teams[this.team] == undefined) 
+	{console.log("Invalid Moving Group Team");return;}
 	//draws a cloud of units
 	draw.fillStyle = teams[this.team].color;
 	if (true || graphics.zoomLevel < 2)
@@ -313,11 +341,6 @@ MovingGroup.prototype.move = function(dis)
 			if (checkedGroup == this)
 				movingUnits.splice(n,1);
 		}
-	}
-	else 
-	{
-		//set a timer for the next move
-		//setTimeout(function(_this){_this.move(MOVE_SPEED/50);},20,this);
 	}
 }
 //unit move loop
@@ -396,7 +419,7 @@ function ViewPort(x,y,width,height)
 	this.width = width;
 	this.height = height;
 	this.zoomLevel = 1;
-	this.AItargets = [];
+	this.effects = [];
 	let self = this;
 	this.handleResize() //adjust the screen initially
 	window.onresize = function(e) {self.handleResize(e);};
@@ -426,7 +449,6 @@ function drawMain()
 	{
 		let group = movingUnits[index];
 		//only draw if the object is near the viewport
-		//if (group.pos.x+100 >= graphics.x && group.pos.y+100 >= graphics.y && group.pos.x-100 <= graphics.x+graphics.width && group.pos.y-100 <= graphics.y+graphics.height)
 		if (group.pos.x >= vLeft && group.pos.y >= vTop && group.pos.x <= vRight && group.pos.y <= vBottom)
 			group.drawObject(graphics);
 	}
@@ -435,7 +457,6 @@ function drawMain()
 	{
 		let node = gameMap.allObjects[index];
 		//only draw if the object is near the viewport
-		//if (node.pos.x+100 >= graphics.x && node.pos.y+100 >= graphics.y && node.pos.x-100 <= graphics.x+graphics.width && node.pos.y-100 <= graphics.y+graphics.height)
 		if (node.pos.x >= vLeft && node.pos.y >= vTop && node.pos.x <= vRight && node.pos.y <= vBottom)
 			node.drawObject(graphics);
 	}
@@ -450,6 +471,17 @@ function drawMain()
 		draw.strokeRect(player.boxSelectPoint.x-graphics.x,player.boxSelectPoint.y-graphics.y,
 			player.mousePos.x-player.boxSelectPoint.x,player.mousePos.y-player.boxSelectPoint.y)
 	}
+	//draw effects
+	for (let e in graphics.effects)
+	{
+		let effect = graphics.effects[e]
+		draw.globalAlpha = 0.5
+		draw.fillStyle = "rgb(255,255,255)";
+		draw.beginPath();
+		draw.arc(effect.pos.x-viewport.x,effect.pos.y-viewport.y,5,0,2*Math.PI,false);
+		draw.fill();
+	}
+	draw.globalAlpha = 1
 	//repeat when next animation frame is requested
 	requestAnimationFrame(drawMain)
 }
@@ -490,6 +522,11 @@ function generateRandomColor()
 		}
 	}
 	return 'rgb(' + red + ',' + green + ',' + blue + ')';
+}
+//adds an effect
+ViewPort.prototype.addEffect = function(position)
+{
+	effects.push({pos:position,age:1})
 }
 
 ///leaderboard mechanic
@@ -948,7 +985,17 @@ function updateGameMap(data)
 		if (duplicate == undefined) //adding new node
 		{
 			//console.log("New Node Detected")
-			let tempNode = new Node(entry.pos,entry.level);
+			let tempNode;// = new Node(entry.pos,entry.level);
+			switch (entry.nodeType)
+			{
+				case "factory":
+				console.log("Generating factory")
+				tempNode = new FactoryNode(entry.pos)
+				break;
+				default:
+				tempNode = new Node(entry.pos,entry.level);
+				break;
+			}
 			for (let u in entry.units)
 			{
 				let group = entry.units[u];

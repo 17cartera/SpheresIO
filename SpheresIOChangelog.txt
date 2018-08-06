@@ -7,10 +7,9 @@
 *Client lag can result in moving groups appearing in an incorrect position (fixed?)
 --Still causes problems if client tabs out
 --Minor issue: slight delay between moving group arriving on client and node being updated (ping-based?)
-*Attrition formula is incorrect
-*Client is not properly disconnected, and may thus send invalid data causing a crash
---Need better malformed packet protection
-*Eliminated players may cause a client crash if they were 
+*Attrition formula is incorrect?
+--May become intended
+*Major errors regarding Firefox web browser
 
 -Todo list: 
 *Improve UI and unit selection hitboxes (done)
@@ -22,6 +21,10 @@
 *Calculate leaderboard server-side (increased bandwidth cost, but less client computation needed?)
 
 Alpha:
+
+8/5/18:
+*Factories (large center nodes) can no longer produce while under attack
+*Added a new sprite for factories
 
 8/4/18(2nd release):
 *Fixed an error in spawning calculations that could result in players being stuck at popcap
