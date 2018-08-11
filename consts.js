@@ -12,25 +12,30 @@ function exportConsts(scope)
     scope.MAP_SIZE = 5000*scope.SIZE_SCALE; //height and width of the map
     scope.MIN_NODES_TO_GENERATE = 100; //minimum amount of nodes generated
     scope.MAX_NODES_TO_GENERATE = 150; //maximum amount of nodes generated
+
     /*large map
     scope.MAP_SIZE = 10000*scope.SIZE_SCALE; //height and width of the map
     scope.MIN_NODES_TO_GENERATE = 400; //minimum amount of nodes generated
-    scope.MAX_NODES_TO_GENERATE = 600; //maximum amount of nodes generated
+    scope.MAX_NODES_TO_GENERATE = 500; //maximum amount of nodes generated
     */
-    scope.TEAMS_TO_GENERATE = 5; //amount of AI teams to generate at the start of the game
-    scope.MAX_RANGE = 500*scope.SIZE_SCALE;//1000*scope.SIZE_SCALE; //maximum range of a movingUnit group (currently only used by AI)
+    scope.FACTORIES_TO_GENERATE = 1; //amount of factories to place on the map
+    scope.TURRETS_TO_GENERATE = scope.MAX_NODES_TO_GENERATE/50 //amount of turrets to place on the map
+    scope.BOT_COUNT = 5; //recommended amount of AI teams
+    scope.MAX_RANGE = 750*scope.SIZE_SCALE;//500*scope.SIZE_SCALE; //maximum range of a movingUnit group (currently only used by AI)
     scope.CONTROL_RANGE = 500*scope.SIZE_SCALE; //range from each node before units suffer attrition
     scope.ATRIT_RATE = 1000*scope.SIZE_SCALE; //amount of pixels a group suffering attrition moves before suffering 50% losses
     scope.MAX_UNITS_IN_GROUP = 100; //maximum units in a moving group before attrition is suffered
     scope.UNITS_PER_SPAWN_MULTIPLIER = 500; //number of units at which base spawn times are doubled
-    scope.HASH_SIZE = MAX_RANGE/2; //size of each hash grid
+    scope.HASH_SIZE = 250//MAX_RANGE/2; //size of each hash grid
+    scope.TURRET_RANGE = 1000*scope.SIZE_SCALE //range of turrets
+    scope.TURRET_ROF = 5; //amount of shots each turret can take per second
     scope.fontSize = 16; //base font size
     /*testing config
     scope.MAP_SIZE = 1000;
     scope.MIN_NODES_TO_GENERATE = 10;
     scope.MAX_NODES_TO_GENERATE = 10;
     scope.TEAMS_TO_GENERATE = 0;
-    */
+    /**/
 }
 if (typeof module === 'undefined')
     exportConsts(window)

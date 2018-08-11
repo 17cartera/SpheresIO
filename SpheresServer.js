@@ -39,37 +39,54 @@ function GameController()
 GameController.prototype.generateMap = function(height,width) 
 {
 	//start with special nodes
-	let centerNode = new FactoryNode(new Position(width/2,height/2))
+	let centerNode = new FactoryNode(new Position(width/2,height/2))//new FactoryNode(new Position(width/2,height/2))
 	centerNode.addUnits(centerNode.team,200);
 	gameMap.addObject(centerNode);
 
-	let n = 0; let generatedNodes = MIN_NODES_TO_GENERATE+Math.floor(Math.random()*(MAX_NODES_TO_GENERATE-MIN_NODES_TO_GENERATE));
+	let x = 0;
+	while (x < TURRETS_TO_GENERATE)
+	{
+		let tempNode = new TurretNode(new Position(Math.random()*width,Math.random()*height));
+		if (this.placeNode(tempNode))
+			x++;
+	}
+	x = 0; let generatedNodes = MIN_NODES_TO_GENERATE+Math.floor(Math.random()*(MAX_NODES_TO_GENERATE-MIN_NODES_TO_GENERATE));
 	//adds nodes only where there is empty space available;
-	while (n < generatedNodes) 
+	while (x < generatedNodes) 
 	{
 		let tempNode = new Node(new Position(Math.random()*width,Math.random()*height),1+Math.floor(Math.random()*5));
 		//determine if there is sufficient space between this node and all other nodes
-		let isClear = true;
-		let potentialObstructions = gameMap.checkAllInRange(tempNode.pos,250);
-		for (let n in potentialObstructions) 
-		{
-			if (Position.getDistance(tempNode.pos,potentialObstructions[n].pos) <= (tempNode.size+potentialObstructions[n].size)*2+40)
-				isClear = false;
-		}
-		//push the node
-		if (isClear)
-		{
-			tempNode.addUnits(tempNode.team,Math.floor(Math.random()*20));
-			gameMap.addObject(tempNode);
-			n++;
-		}
+		if (this.placeNode(tempNode))
+			x++;
 	}
 	//spawns teams to populate the map with AI bots
 	let t = 1;
-	while (t <= TEAMS_TO_GENERATE) 
+	while (t <= BOT_COUNT) 
 	{
 		this.spawnNewPlayer(new BotController(teams.length),"Bot");
 		t++;
+	}
+}
+//attempts to place a node
+GameController.prototype.placeNode = function(tempNode)
+{
+	let isClear = true;
+	let potentialObstructions = gameMap.checkAllInRange(tempNode.pos,250);
+	for (let n in potentialObstructions) 
+	{
+		if (Position.getDistance(tempNode.pos,potentialObstructions[n].pos) <= (tempNode.size+potentialObstructions[n].size)*2+30)
+			isClear = false;
+	}
+	//push the node
+	if (isClear)
+	{
+		tempNode.addUnits(tempNode.team,10+Math.floor(Math.random()*40));
+		gameMap.addObject(tempNode);
+		return true;
+	}
+	else
+	{
+		return false;
 	}
 }
 //spawns in a new player
@@ -99,7 +116,8 @@ GameController.prototype.spawnNewPlayer = function(controller,name)
 		if (node.team == 0) 
 		{
 			isValidLocationFound = true;
-			node.units = [];
+			for (let u in node.units)
+				node.addUnits(node.units[u].team,-node.units[u].number)
 			node.changeTeam(teamIndex);
 			node.addUnits(teamIndex,100);
 		}
@@ -248,7 +266,7 @@ Node.prototype.getTotalUnits = function()
 return sum;	
 }
 //adds (or removes if parameter is negative) units to the node
-Node.prototype.addUnits = function(team,number) 
+Node.prototype.addUnits = function(team,number,effect) 
 {
 	let isAdded = false;
 	for (let index in this.units) 
@@ -275,7 +293,7 @@ Node.prototype.addUnits = function(team,number)
 		this.units.push(new Units(team,number));
 		teams[team].controller.addOccupiedNode(this);
 	}
-	let packet = {type:"units",node:this.id,team:team,number:number}
+	let packet = {type:"units",node:this.id,team:team,number:number,effect:effect}
 	addPacket(packet)
 }
 //spawns a unit at this node if conditions are right 
@@ -404,7 +422,7 @@ Node.prototype.fight = function()
 	{
 		if (x != index)
 		{
-			this.addUnits(unitNums[x].team,-1)
+			this.addUnits(unitNums[x].team,-1,true)
 		}
 	}
 	//continue fighting if a fight is still needed 
@@ -436,6 +454,41 @@ FactoryNode.prototype.spawn = function() //factory nodes do not spawn if in comb
 	else
 		this.spawning = false;
 }
+//special node type: turret, shoots at nearby enemy unit groups
+TurretNode.prototype = new Node();
+TurretNode.prototype.constructor = TurretNode;
+function TurretNode(position)
+{
+	Node.call(this,position,5);
+	this.nodeType = "turret";
+	setInterval(function(_this){_this.checkLaser();},1000/TURRET_ROF,this);
+}
+//turrets do not spawn
+TurretNode.prototype.spawn = function()
+{
+	return;
+}
+//runs laser shot calculations
+TurretNode.prototype.checkLaser = function()
+{
+	if (this.team == 0) return; //do not activate if neutral
+	let closestGroup,closestRange = TURRET_RANGE;
+	for (let u in movingUnits) //check to see if an enemy group is within turret range
+	{
+		let group = movingUnits[u]
+		let distance = Position.getDistance(this.pos,group.pos)
+		if (distance < closestRange && group.team != this.team) 
+		{
+			closestGroup = group;
+			closestRange = distance;
+		}
+	}
+	if (closestGroup != undefined) //shoot the closest detected enemy group
+	{
+		closestGroup.number -= 1;
+		addPacket({type:"groupLoss",id:closestGroup.id,number:1,laser:this.id})
+	}
+}
 
 //an object for a moving group of units
 function MovingGroup(team,number,startNode,endNode) 
@@ -451,6 +504,11 @@ function MovingGroup(team,number,startNode,endNode)
 //moves the group towards its destination
 MovingGroup.prototype.move = function(dis) 
 {
+	//if there are 0 units on this node, destroy it
+	if (this.number <= 0)
+	{
+		return "destroyed"
+	}
 	this.pos.x += dis*Math.cos(this.direction);
 	this.pos.y += dis*Math.sin(this.direction);
 	//if close to the other node, add this group's units to that node
@@ -467,13 +525,14 @@ MovingGroup.prototype.move = function(dis)
 	}
 	else 
 	{
-		//check for attrition
 		this.checkForAttrition()
 	}
 }
 //checks for attrition
 MovingGroup.prototype.checkForAttrition = function()
 {
+	if (teams[this.team] == undefined)
+	{console.log("Invalid Moving Group Team"); console.log(this.number); return;}
 	let friendlyNodes = teams[this.team].controller.occupiedNodes
 	let nearFriendly = false;
 	for (let n in friendlyNodes)
@@ -513,7 +572,14 @@ MovingGroup.prototype.checkForAttrition = function()
 function moveAllGroups()
 {
 	for (var u in movingUnits)
-		movingUnits[u].move(MOVE_SPEED/60)
+	{
+		if(movingUnits[u].move(MOVE_SPEED/60) == "destroyed")
+		{
+			console.log("Destroying moving group")
+			movingUnits.splice(u,1)
+			u--;
+		}
+	}
 }
 setInterval(moveAllGroups,1000/60)
 
@@ -722,18 +788,20 @@ function BotController(team)
 	this.expansionWeight = 0.5+Math.random(); //weight of expanding and gaining territory
 	this.attackWeight = 0.5+Math.random(); //weight of attacking and eliminating other players
 	this.defenseWeight = 0.5+Math.random(); //weight of protecting nodes and units
-	this.reaction = 0.02+Math.random()*0.08; //chance of the AI acting every AI tick
+	this.movePercentage = 0.3+Math.random()*0.6; //percentage of units the AI moves each move order
+	this.reaction = 0.02+Math.random()*0.08; //chance of the AI acting every AI tick (aka the speed the AI moves)
 }
 //main AI loop
 BotController.prototype.runAI = function() 
 {
 	//get the available moves for the AI
-	this.getData();
+	//this.getData();
 	//assign values
-	this.assignValues();
+	//this.assignValues();
 	if (Math.random() <= this.reaction && this.occupiedNodes.length != 0) 
 	{
-
+		this.getData();
+		this.assignValues();
 		//search for the highest value move, with some randomness
 		let chosenMove = null;
 		let chosenValue = 0;
@@ -749,8 +817,10 @@ BotController.prototype.runAI = function()
 		}
 		//make the chosen move
 		if (chosenMove != null)
-		this.moveUnits(chosenMove.origin,chosenMove.target,Math.floor(chosenMove.origin.getUnitsOfTeam(this.team).number/2));
-
+			this.moveUnits(chosenMove.origin,chosenMove.target,Math.floor(chosenMove.origin.getUnitsOfTeam(this.team).number*this.movePercentage));
+		//occasionally change the move percentage
+		if (Math.random() < 0.1)
+			this.movePercentage = 0.3+Math.random()*0.6;
 	}
 }
 //gets data
@@ -783,20 +853,27 @@ BotController.prototype.assignValues = function()
 		//analyze the target
 		if (targetOwner == 1) //target is allied
 		{
-			if (targetUnits <= -5 && originUnits > -2 * targetUnits) //target ally is under attack
+			if (targetUnits <= -5 && originUnits*this.movePercentage > -targetUnits) //target ally is under attack
 			{
 				move.value += (2+target.level+target.getTotalUnits()/10)*this.defenseWeight; //high-value move
 			}
 		}
 		if (targetOwner == 0) //target is neutral
 		{
-			move.value += target.level * this.expansionWeight; //increase the incentive to capture this node
+			if (originUnits*this.movePercentage > -targetUnits+10)
+			{
+				move.value += (2+target.level+target.getTotalUnits()/10)*this.expansionWeight; //target can be captured
+			}
+			else 
+			{
+				move.value -= 5; //if the target is strong enough to resist the attack, avoid this move
+			}
 		}
 		if (targetOwner == -1) //target is enemy
 		{
-			if (originUnits > -2.5 * targetUnits)
+			if (originUnits*this.movePercentage > -targetUnits+10 || Math.random() < this.attackWeight/20)
 			{
-				move.value += (2+target.level+target.getTotalUnits()/10)*this.attackWeight; //high-value move
+				move.value += (2+target.level+target.getTotalUnits()/10)*this.attackWeight; //target is vulnerable to attack
 			}
 			else 
 			{
@@ -804,10 +881,16 @@ BotController.prototype.assignValues = function()
 			}
 		}
 		//analyze the origin
-		move.value -= Math.max(0,(10*this.defenseWeight-originUnits)); //moves with small numbers of units have lower value
 		if (originOwner == 1) //origin is allied 
 		{
-			
+			if (originUnits != origin.getTotalUnits()) //defensive action on this node, hold position
+			{
+				move.value -= 5;
+			}
+			if (targetOwner == 1 && originUnits < targetUnits) //low priority: cluster forces
+			{
+				move.value += 0.5;
+			}
 		}
 		if (originOwner == 0) //target is neutral
 		{
@@ -815,13 +898,13 @@ BotController.prototype.assignValues = function()
 		}
 		if (originOwner == -1) //target is enemy
 		{
-			if (originUnits <= -5) //units are being overwhelmed
+			if (originUnits <= -10) //units are being overwhelmed
 			{
-				move.value += 10*this.defenseWeight; //high-value move to evacuate
+				move.value += this.defenseWeight; //high-value move to evacuate
 			}
 			else 
 			{
-				move.value -= 3*origin.level*this.attackWeight; //avoid removing units from an active attack
+				move.value -= 3*origin.level*this.attackWeight; //avoid removing units from a moderately effective attack
 			}
 		}
 	}
@@ -837,7 +920,9 @@ function PlayerController(team,client)
 	this.packets = []; //data packets to send to the client
 	//set up to transfer data to the client
 	this.transferAllData() //send all data to allow client to load the map
-	setInterval(function(_this){_this.sendPackets();},10,this); //send packet set to the client
+	//this.sendPackets()
+	//setTimeout(function(_this){_this.sendPackets();},10,this);
+	//setInterval(function(_this){_this.sendPackets();},10,this); //send packet set to the client
 	//set up to receive data from the client
 	this.client.player = this
 	this.client.on('spawn', function(data) //the client is requesting to spawn in
@@ -875,34 +960,15 @@ PlayerController.prototype.transferAllData = function()
 }
 //send information packets to the client
 PlayerController.prototype.sendPackets = function()
-{	
-	//transmit teams (temp code)
-	/*
-	let teamData = []
-	for (let t in teams) //avoid transmitting the controller object due to circular reference with client object
-	{
-		let team = teams[t]		
-		if (team == undefined)
-			teamData.push(undefined)
-		else
-			teamData.push({index:t,color:team.color,name:team.name})
-	}
-	this.client.emit("teams",teamData)
-	*/
-	//transmit leaderboard data
-	/*
-	let leaderData = []
-	for (let t in leaderBoard.top10)
-	{
-		let team = leaderBoard.top10[t]
-		leaderData.push({color:team.color,name:team.name,score:team.controller.unitCapacity})
-	}
-	this.client.emit("leaderboard",leaderData)
-	*/
-	//output other packets
+{
 	this.client.emit("data",this.packets)
 	this.packets = []
 	//this.client.emit("groups",movingUnits)
+}
+PlayerController.prototype.sendPacket = function(packet)
+{
+	let packetObject = [packet]
+	this.client.emit("data",packetObject)
 }
 //initiate the spawning process
 PlayerController.prototype.spawn = function(name)
@@ -949,7 +1015,7 @@ PlayerController.prototype.disconnect = function(data)
 		let units = node.getUnitsOfTeam(this.team).number
 		if (units > 0) //transform all units to
 		{
-			node.addUnits(this.team,-units)
+			node.addUnits(this.team,-units,true)
 			node.addUnits(0,units)
 		}
 		if (node.team == this.team)
@@ -1026,6 +1092,7 @@ function addPacket(data)
 {
 	for (let p in players)
 	{
-		players[p].packets.push(data)
+		//players[p].packets.push(data)
+		players[p].sendPacket(data)
 	}
 }

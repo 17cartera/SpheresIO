@@ -22,6 +22,20 @@
 
 Alpha:
 
+8/10/18:
+*Added turrets that destroy units from enemy moving groups within their range
+*Added explosion SFX when units are destroyed in combat
+
+8/8/18:
+*Optimized netcode for lag reduction
+*Improved bot AI
+--AI now takes advantage of varying unit send percentages
+--AI priorities improved
+--AI move range increased
+*Greatly increased the amount of units neutral nodes start with
+*Fixed a bug where units could not be moved to the first node the player selected
+*Improved the visual for showing player control range
+
 8/5/18:
 *Factories (large center nodes) can no longer produce while under attack
 *Added a new sprite for factories

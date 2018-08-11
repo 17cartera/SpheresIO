@@ -194,15 +194,6 @@ Node.prototype.drawObject = function(viewport)
 		draw.arc(this.pos.x-viewport.x,this.pos.y-viewport.y,this.size*1.5,0,2*Math.PI,false);
 		draw.stroke();
 	}
-	//if the node is player-controlled, show the control range
-	if (this.team == player.team)
-	{
-		draw.strokeStyle = "rgba(128,128,128,.2)";
-		draw.lineWidth = 1;
-		draw.beginPath();
-		draw.arc(this.pos.x-viewport.x,this.pos.y-viewport.y,CONTROL_RANGE,0,2*Math.PI,false);
-		draw.stroke();
-	}
 	//if the node is being captured, draw the capture meter
 	if (this.capturePoints != 0) 
 	{
@@ -246,7 +237,7 @@ Node.prototype.getTotalUnits = function()
 return sum;	
 }
 //adds (or removes if parameter is negative) units to the node
-Node.prototype.addUnits = function(team,number) 
+Node.prototype.addUnits = function(team,number,effect) 
 {
 	if (teams[team] == undefined) {console.log("Attempting to add units to invalid team");return;}
 	let isAdded = false;
@@ -255,6 +246,16 @@ Node.prototype.addUnits = function(team,number)
 		let group = this.units[index];
 		if (group.team == team) 
 		{
+			if (effect == true && number < 0) //generate explosion effects
+			{
+				for (let index = 0; index < -number; index += 1) 
+				{
+					let unitPos = group.unitMap[index];
+					let unitx = this.pos.x+(Math.cos(unitPos.angle)*this.size*unitPos.distance);
+					let unity = this.pos.y+(Math.sin(unitPos.angle)*this.size*unitPos.distance);
+					graphics.addExplosionEffect(new Position(unitx,unity),teams[group.team].color)
+				}
+			}
 			group.number += number;
 			if (group.number <= 0) 
 			{
@@ -292,6 +293,31 @@ FactoryNode.prototype.drawBody = function(viewport)
 	draw.lineTo(this.pos.x-viewport.x-this.size/2,this.pos.y-viewport.y+this.size*0.866)
 	draw.lineTo(this.pos.x-viewport.x+this.size/2,this.pos.y-viewport.y+this.size*0.866)
 	draw.fill();
+}
+//special node type: turret, shoots at nearby enemy unit groups
+TurretNode.prototype = new Node();
+TurretNode.prototype.constructor = TurretNode;
+function TurretNode(position)
+{
+	Node.call(this,position,5);
+	this.nodeType = "turret";
+}
+//draws a square
+TurretNode.prototype.drawBody = function(viewport)
+{
+	draw.fillStyle = teams[this.team].color;
+	draw.fillRect(this.pos.x-viewport.x-this.size*.75,this.pos.y-viewport.y-this.size*.75,this.size*1.5,this.size*1.5);
+	//show the laser's range
+	if (this.team != 0)
+	{
+		draw.strokeStyle = teams[this.team].color
+		draw.lineWidth = 2;
+		draw.globalAlpha = 0.3;
+		draw.beginPath();
+		draw.arc(this.pos.x-viewport.x,this.pos.y-viewport.y,TURRET_RANGE,0,2*Math.PI);
+		draw.stroke();
+		draw.globalAlpha = 1;
+	}
 }
 
 //an object for a moving group of units
@@ -435,15 +461,25 @@ function drawMain()
 	draw.textAlign = "center"
 	//clear screen
 	draw.clearRect(0,0,canvas.width,canvas.height);
-	//draw the border
-	draw.strokeStyle = "rgb(255,255,255)";
-	draw.lineWidth = 8;
-	draw.strokeRect(0-graphics.x,0-graphics.y,MAP_SIZE,MAP_SIZE);
 	//calculate boundaries of viewport (plus a buffer region)
 	let vLeft = graphics.x-100
 	let vTop = graphics.y-100
 	let vRight = graphics.x+graphics.width+100
 	let vBottom = graphics.y+graphics.height+100
+	//show the player's control range (first to show underneath all other elements)
+	draw.fillStyle = "rgb(25,25,25)";
+	for (let index in player.occupiedNodes)
+	{
+		let node = player.occupiedNodes[index];
+		if (node.team != player.team) continue;
+		draw.beginPath();
+		draw.arc(node.pos.x-graphics.x,node.pos.y-graphics.y,CONTROL_RANGE,0,2*Math.PI,false);
+		draw.fill();
+	}
+	//draw the border
+	draw.strokeStyle = "rgb(255,255,255)";
+	draw.lineWidth = 8;
+	draw.strokeRect(0-graphics.x,0-graphics.y,MAP_SIZE,MAP_SIZE);
 	//draw moving groups
 	for (let index in movingUnits) 
 	{
@@ -465,7 +501,6 @@ function drawMain()
 	//draw a box for box select
 	if (player.boxSelectPoint != undefined)
 	{
-		console.log("Drawing select box")
 		draw.strokeStyle = "rgba(255,255,255,0.5)";
 		draw.lineWidth = 4;
 		draw.strokeRect(player.boxSelectPoint.x-graphics.x,player.boxSelectPoint.y-graphics.y,
@@ -474,12 +509,34 @@ function drawMain()
 	//draw effects
 	for (let e in graphics.effects)
 	{
-		let effect = graphics.effects[e]
-		draw.globalAlpha = 0.5
-		draw.fillStyle = "rgb(255,255,255)";
-		draw.beginPath();
-		draw.arc(effect.pos.x-viewport.x,effect.pos.y-viewport.y,5,0,2*Math.PI,false);
-		draw.fill();
+		let effect = graphics.effects[e];
+		let maxAge;
+		switch(effect.type)
+		{	
+			case "explosion":
+			draw.globalAlpha = 0.6-effect.age*0.1
+			draw.fillStyle = effect.color || "rgb(255,255,255)";
+			draw.beginPath();
+			draw.arc(effect.pos.x-graphics.x,effect.pos.y-graphics.y,4+effect.age,0,2*Math.PI,false);
+			draw.fill();
+			maxAge = 6;
+			break;
+			case "laser":
+			draw.globalAlpha = 0.75-effect.age*0.25
+			draw.strokeStyle = effect.color || "rgb(255,255,255)"
+			draw.beginPath();
+			draw.moveTo(effect.pos1.x-graphics.x,effect.pos1.y-graphics.y);
+			draw.lineTo(effect.pos2.x-graphics.x,effect.pos2.y-graphics.y);
+			draw.stroke();
+			maxAge = 2;
+			break;
+		}
+		effect.age++;
+		if (effect.age >= maxAge)
+		{
+			graphics.effects.splice(e,1);
+			e--;
+		}
 	}
 	draw.globalAlpha = 1
 	//repeat when next animation frame is requested
@@ -506,6 +563,16 @@ ViewPort.prototype.zoom = function(e)
 	fontSize = 16+16*((this.zoomLevel-1)/2);
 	this.handleResize(e); //resizes the screen automatically
 }
+//adds an explosion effect
+ViewPort.prototype.addExplosionEffect = function(position,color)
+{
+	this.effects.push({type:"explosion",pos:position,color:color,age:0})
+}
+//adds a laser effect
+ViewPort.prototype.addLaserEffect = function(pos1,pos2,color)
+{
+	this.effects.push({type:"laser",pos1:pos1,pos2:pos2,color:color,age:0})
+}
 //returns a random color for a team
 function generateRandomColor() 
 {
@@ -522,11 +589,6 @@ function generateRandomColor()
 		}
 	}
 	return 'rgb(' + red + ',' + green + ',' + blue + ')';
-}
-//adds an effect
-ViewPort.prototype.addEffect = function(position)
-{
-	effects.push({pos:position,age:1})
 }
 
 ///leaderboard mechanic
@@ -621,7 +683,7 @@ Controller.prototype.removeOccupiedNode = function(node)
 			this.occupiedNodes.splice(n,1);
 			if (this.occupiedNodes.length == 0) //if the controller has no nodes, it is eliminated
 			{
-				console.log("Player " + this.team + " has been eliminated")
+				console.log("A player is eliminated")
 			}
 			return;
 		}
@@ -876,7 +938,7 @@ PlayerController.prototype.getMouseUp = function(e)
 			}
 		}
 		//if a node is selected, move units between both nodes
-		if (node != null && node != this.selectedNodes[0])
+		if (node != null && (node != this.selectedNodes[0] || this.selectedNodes.length > 1))
 		{
 			for (let x in this.selectedNodes) 
 			{
@@ -949,7 +1011,6 @@ function getObjectById(id)
 //netcode elements
 function updateTeams(data)
 {
-	console.log(data)
 	for (let n in data)
 	{
 		let entry = data[n]
@@ -957,14 +1018,9 @@ function updateTeams(data)
 		//test to ensure the teams are not duplicated
 		if (teams[entry.index] == undefined)
 		{
-			//console.log("New Team Detected")
 			let entry = data[n]
 			let newTeam = new Team(entry.color,new Controller(),entry.name)
 			teams[entry.index] = newTeam
-		}
-		else
-		{
-			//console.log("Duplicate Team Detected")
 		}
 	}
 	if (player.team != undefined && player.team != 0)
@@ -989,8 +1045,10 @@ function updateGameMap(data)
 			switch (entry.nodeType)
 			{
 				case "factory":
-				console.log("Generating factory")
 				tempNode = new FactoryNode(entry.pos)
+				break;
+				case "turret":
+				tempNode = new TurretNode(entry.pos)
 				break;
 				default:
 				tempNode = new Node(entry.pos,entry.level);
@@ -1010,7 +1068,6 @@ function updateGameMap(data)
 		}
 		else //updating attributes of existing node
 		{
-			//console.log("Node already exists, updating attributes")
 			for (let u in entry.units) //update each unit group
 			{
 				let newUnits = entry.units[u]
@@ -1075,7 +1132,7 @@ function processPackets(data)
 		switch (entry.type)
 		{
 			case "units": //units are added or removed from the node
-			node.addUnits(entry.team,entry.number)
+			node.addUnits(entry.team,entry.number,entry.effect)
 			break;
 			case "assault": //the node is being captured
 			node.capturePoints = entry.points
@@ -1091,7 +1148,7 @@ function processPackets(data)
 			newGroup.id = entry.id
 			movingUnits.push(newGroup)
 			break;
-			case "groupLoss": //a moving group has lost units due to attrition
+			case "groupLoss": //a moving group has lost units due to attrition or turrets
 			let group; let u;
 			for (u in movingUnits)
 			{
@@ -1101,6 +1158,11 @@ function processPackets(data)
 			if (group != undefined)
 			{
 				group.number -= entry.number
+				if (entry.laser != undefined) //add visual effects if a turret caused the group losses
+				{
+					let turret = getObjectById(entry.laser)
+					graphics.addLaserEffect(turret.pos,group.pos,teams[turret.team].color)
+				}
 				if (group.number <= 0) //delete the moving group if it is reduced to 0 units
 					delete movingUnits[u]
 			}
@@ -1110,7 +1172,7 @@ function processPackets(data)
 			if (entry.index == player.team)
 				teams[entry.index] = new Team(entry.color,player,entry.name);
 			else
-				teams[entry.index] = new Team(entry.color,new Controller(),entry.name);			
+				teams[entry.index] = new Team(entry.color,new Controller(),entry.name);
 			break;
 			case "removeTeam": //a team has been eliminated
 			console.log("Removing Team")
@@ -1125,12 +1187,19 @@ function sendSpawnPlayer(name)
 }
 function completeSpawn(data)
 {
+	console.log("Completing Spawn Process")
 	player.team = data.team
+	if (teams[player.team] != undefined) //switch the controller in the teams 
+	{
+		player.occupiedNodes = teams[player.team].controller.occupiedNodes
+		teams[player.team].controller = player
+		player.calculateUnitCapacity()
+	}
 	graphics.x = data.spawnPoint.pos.x-(graphics.width/2);
 	graphics.y = data.spawnPoint.pos.y-(graphics.height/2);
 	//reset data for the spawn point
-	let spawnNode = getObjectById(data.spawnPoint.id)
-	spawnNode.capturePoints = 0; spawnNode.captureTeam = 0; spawnNode.units = [];
+	//let spawnNode = getObjectById(data.spawnPoint.id)
+	//spawnNode.capturePoints = 0; spawnNode.captureTeam = 0; spawnNode.units = [];
 }
 function handleDisconnect(data)
 {
