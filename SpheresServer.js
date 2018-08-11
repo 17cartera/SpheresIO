@@ -575,7 +575,6 @@ function moveAllGroups()
 	{
 		if(movingUnits[u].move(MOVE_SPEED/60) == "destroyed")
 		{
-			console.log("Destroying moving group")
 			movingUnits.splice(u,1)
 			u--;
 		}
