@@ -34,7 +34,7 @@ function exportConsts(scope)
     scope.MAP_SIZE = 1000;
     scope.MIN_NODES_TO_GENERATE = 10;
     scope.MAX_NODES_TO_GENERATE = 10;
-    scope.TEAMS_TO_GENERATE = 0;
+    scope.BOT_COUNT = 0;
     /**/
 }
 if (typeof module === 'undefined')

@@ -4,12 +4,11 @@
 --Likely due to poor handling of change in captureTeam?
 *Random colors can be too identical to each other
 *Double-clicking is nonfunctional
-*Client lag can result in moving groups appearing in an incorrect position (fixed?)
---Still causes problems if client tabs out
---Minor issue: slight delay between moving group arriving on client and node being updated (ping-based?)
 *Attrition formula is incorrect?
 --May become intended
 *Major errors regarding Firefox web browser
+*Lasers killing a player's last unit does not cause an elimination
+--Moving groups not properly being removed
 
 -Todo list: 
 *Improve UI and unit selection hitboxes (done)
@@ -21,6 +20,9 @@
 *Calculate leaderboard server-side (increased bandwidth cost, but less client computation needed?)
 
 Alpha:
+
+8/14/18:
+*Moving unit lag handling improved, should now have no speed issues due to lag
 
 8/10/18:
 *Added turrets that destroy units from enemy moving groups within their range

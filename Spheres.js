@@ -330,6 +330,8 @@ function MovingGroup(team,number,startNode,endNode)
 	this.endNode = endNode;
 	this.pos = new Position(startNode.pos.x,startNode.pos.y);
 	this.direction = Position.getDirection(this.startNode.pos,this.endNode.pos);
+	this.remainingDistance = Position.getDistance(this.startNode.pos,this.endNode.pos);
+	this.lastMoveTime = new Date(); //time when the last move order was executed, should be at most 17 without any lag
 }
 MovingGroup.prototype.drawObject = function(viewport) 
 {
@@ -352,12 +354,16 @@ MovingGroup.prototype.drawObject = function(viewport)
 	draw.fillText(this.number,this.pos.x-viewport.x,this.pos.y-viewport.y);
 }
 //moves the group towards its destination
-MovingGroup.prototype.move = function(dis) 
+MovingGroup.prototype.move = function() 
 {
-	this.pos.x += dis*Math.cos(this.direction);
-	this.pos.y += dis*Math.sin(this.direction);
+	let currentTime = new Date();
+	let distance = MOVE_SPEED*(currentTime-this.lastMoveTime)/1000
+	this.lastMoveTime = currentTime
+	this.pos.x += distance*Math.cos(this.direction);
+	this.pos.y += distance*Math.sin(this.direction);
+	this.remainingDistance -= distance;
 	//if close to the other node, add this group's units to that node
-	if (Position.getDistance(this.pos,this.endNode.pos) <= this.endNode.size) 
+	if (this.remainingDistance <= this.endNode.size) 
 	{
 		//this.endNode.addUnits(this.team,this.number);
 		//remove this group from array
@@ -373,7 +379,7 @@ MovingGroup.prototype.move = function(dis)
 function moveAllGroups()
 {
 	for (var u in movingUnits)
-		movingUnits[u].move(MOVE_SPEED/60)
+		movingUnits[u].move()
 }
 setInterval(moveAllGroups,1000/60)
 
