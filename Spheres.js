@@ -159,7 +159,8 @@ Node.prototype.drawObject = function(viewport)
 	//show player name above the node
 	if (this.team != 0)
 	{
-		let name = teams[this.team].name
+		let name = teams[this.team].name;
+		draw.fillStyle = teams[this.team].color;
 		draw.fillText(name,this.pos.x-viewport.x,this.pos.y-viewport.y-this.size*2)
 	}
 	//draw all units in orbit around the center of the node, and draw numbers to show the amounts
@@ -310,7 +311,7 @@ TurretNode.prototype.drawBody = function(viewport)
 	//show the laser's range
 	if (this.team != 0)
 	{
-		draw.strokeStyle = teams[this.team].color
+		draw.strokeStyle = teams[this.team].color;
 		draw.lineWidth = 2;
 		draw.globalAlpha = 0.3;
 		draw.beginPath();
@@ -318,6 +319,40 @@ TurretNode.prototype.drawBody = function(viewport)
 		draw.stroke();
 		draw.globalAlpha = 1;
 	}
+}
+//special node type: portal, teleports units of the controlled team
+PortalNode.prototype = new Node();
+PortalNode.prototype.constructor = PortalNode;
+function PortalNode(position)
+{
+	Node.call(this,position,5);
+	this.nodeType = "portal";
+}
+//some sort of portal effect
+PortalNode.prototype.drawBody = function(viewport)
+{
+	draw.strokeStyle = teams[this.team].color;
+	draw.lineWidth = 4;
+	//inner ring
+	draw.beginPath();
+	draw.arc(this.pos.x-viewport.x,this.pos.y-viewport.y,this.size*0.5,0,2*Math.PI,false);
+	draw.stroke();
+	//outer ring
+	draw.beginPath();
+	draw.arc(this.pos.x-viewport.x,this.pos.y-viewport.y,this.size,0,2*Math.PI,false);
+	draw.stroke();
+	//connecting lines
+	draw.lineWidth = 2;
+	draw.beginPath();
+	draw.moveTo(this.pos.x-viewport.x+this.size,this.pos.y-viewport.y);
+	draw.lineTo(this.pos.x-viewport.x+this.size*0.5,this.pos.y-viewport.y);
+	draw.moveTo(this.pos.x-viewport.x-this.size,this.pos.y-viewport.y);
+	draw.lineTo(this.pos.x-viewport.x-this.size*0.5,this.pos.y-viewport.y);
+	draw.moveTo(this.pos.x-viewport.x,this.pos.y-viewport.y+this.size);
+	draw.lineTo(this.pos.x-viewport.x,this.pos.y-viewport.y+this.size*0.5);
+	draw.moveTo(this.pos.x-viewport.x,this.pos.y-viewport.y-this.size);
+	draw.lineTo(this.pos.x-viewport.x,this.pos.y-viewport.y-this.size*0.5);
+	draw.stroke();
 }
 
 //an object for a moving group of units
@@ -703,7 +738,7 @@ Controller.prototype.calculateUnitCapacity = function()
 	for (let n in this.occupiedNodes) //add capacity for each owned node
 	{
 		let node = this.occupiedNodes[n];
-		if (this.getOwner(node) == 1)
+		if (this.getOwner(node) == 1 && node.nodeType == undefined)
 			this.unitCapacity += node.level*UNITS_PER_LEVEL;
 	}
 	return this.unitCapacity;
@@ -1055,6 +1090,9 @@ function updateGameMap(data)
 				break;
 				case "turret":
 				tempNode = new TurretNode(entry.pos)
+				break;
+				case "portal":
+				tempNode = new PortalNode(entry.pos)
 				break;
 				default:
 				tempNode = new Node(entry.pos,entry.level);

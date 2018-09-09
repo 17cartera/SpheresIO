@@ -39,11 +39,26 @@ function GameController()
 GameController.prototype.generateMap = function(height,width) 
 {
 	//start with special nodes
-	let centerNode = new FactoryNode(new Position(width/2,height/2))//new FactoryNode(new Position(width/2,height/2))
-	centerNode.addUnits(centerNode.team,200);
+	/*
+	let centerNode = new FactoryNode(new Position(width/2,height/2));
+	centerNode.addUnits(centerNode.team,100);
 	gameMap.addObject(centerNode);
-
+	*/
 	let x = 0;
+	while (x < FACTORIES_TO_GENERATE)
+	{
+		let tempNode = new FactoryNode(new Position(Math.random()*width,Math.random()*height));
+		if (this.placeNode(tempNode))
+			x++;
+	}
+	x = 0;
+	while (x < PORTALS_TO_GENERATE)
+	{
+		let tempNode = new PortalNode(new Position(Math.random()*width,Math.random()*height));
+		if (this.placeNode(tempNode))
+			x++;
+	}
+	x = 0;
 	while (x < TURRETS_TO_GENERATE)
 	{
 		let tempNode = new TurretNode(new Position(Math.random()*width,Math.random()*height));
@@ -113,7 +128,7 @@ GameController.prototype.spawnNewPlayer = function(controller,name)
 		counter++;
 		let index = Math.floor(Math.random()*gameMap.allObjects.length);
 		node = gameMap.allObjects[index];
-		if (node.team == 0) 
+		if (node.team == 0 && node.nodeType == undefined) 
 		{
 			isValidLocationFound = true;
 			for (let u in node.units)
@@ -489,6 +504,19 @@ TurretNode.prototype.checkLaser = function()
 		addPacket({type:"groupLoss",id:closestGroup.id,number:1,laser:this.id})
 	}
 }
+//special node type: portal, teleports units of the controlled team
+PortalNode.prototype = new Node();
+PortalNode.prototype.constructor = PortalNode;
+function PortalNode(position)
+{
+	Node.call(this,position,5);
+	this.nodeType = "portal";
+}
+//portals do not spawn
+PortalNode.prototype.spawn = function()
+{
+	return;
+}
 
 //an object for a moving group of units
 function MovingGroup(team,number,startNode,endNode) 
@@ -693,6 +721,11 @@ Controller.prototype.moveUnits = function(startNode,endNode,unitsTransferred)
 	if (unitsTransferred != 0/* && Position.getDistance(startNode.pos,endNode.pos) <= MAX_RANGE */&& startNode != endNode) //extra checking of conditions
 	{
 		startNode.addUnits(this.team,-unitsTransferred);
+		if (startNode.nodeType == "portal" && startNode.team == this.team)
+		{
+			endNode.addUnits(this.team,unitsTransferred);
+			return;
+		}
 		let moveGroup = new MovingGroup(this.team,unitsTransferred,startNode,endNode);
 		movingUnits.push(moveGroup);
 		addPacket({type:"move",team:this.team,number:unitsTransferred,node:startNode.id,otherNode:endNode.id,id:moveGroup.id})
@@ -747,7 +780,7 @@ Controller.prototype.calculateUnitCapacity = function()
 	for (let n in this.occupiedNodes) //add capacity for each owned node
 	{
 		let node = this.occupiedNodes[n];
-		if (this.getOwner(node) == 1)
+		if (this.getOwner(node) == 1 && node.nodeType == undefined)
 			this.unitCapacity += node.level*UNITS_PER_LEVEL;
 	}
 	return this.unitCapacity;
@@ -834,8 +867,11 @@ BotController.prototype.getData = function()
 	this.availableMoves = []; //get all available moves for the AI
 	for (let n1 in this.occupiedNodes) 
 	{
-		let originNode = this.occupiedNodes[n1];
-		let availableTargets = gameMap.checkAllInRange(originNode.pos,MAX_RANGE);
+		let originNode = this.occupiedNodes[n1]; let availableTargets;
+		if (originNode.nodeType == "portal")
+			availableTargets = gameMap.allObjects;
+		else
+			availableTargets = gameMap.checkAllInRange(originNode.pos,MAX_RANGE);
 		for (let n2 in availableTargets) 
 		{
 			let targetNode = availableTargets[n2];
@@ -892,9 +928,9 @@ BotController.prototype.assignValues = function()
 			{
 				move.value -= 5;
 			}
-			if (targetOwner == 1 && originUnits < targetUnits) //low priority: cluster forces
+			if (targetOwner == 1 && target.nodeType == "portal") //send forces to portals to prepare attacks
 			{
-				move.value += 0.5;
+				move.value += 1;
 			}
 		}
 		if (originOwner == 0) //target is neutral
@@ -925,9 +961,7 @@ function PlayerController(team,client)
 	this.packets = []; //data packets to send to the client
 	//set up to transfer data to the client
 	this.transferAllData() //send all data to allow client to load the map
-	//this.sendPackets()
-	//setTimeout(function(_this){_this.sendPackets();},10,this);
-	//setInterval(function(_this){_this.sendPackets();},10,this); //send packet set to the client
+	setInterval(function(_this){_this.sendPackets();},10,this); //send packet set to the client
 	//set up to receive data from the client
 	this.client.player = this
 	this.client.on('spawn', function(data) //the client is requesting to spawn in
@@ -1097,7 +1131,7 @@ function addPacket(data)
 {
 	for (let p in players)
 	{
-		//players[p].packets.push(data)
-		players[p].sendPacket(data)
+		players[p].packets.push(data)
+		//players[p].sendPacket(data)
 	}
 }

@@ -10,23 +10,22 @@
 *Lasers killing a player's last unit does not cause an elimination
 --Moving groups not properly being removed
 
--Todo list: 
-*Improve UI and unit selection hitboxes (done)
-*Update tutorial
-*Fix group travel speed (partially done)
-*Add handling for player disconnects
-
--Ideas:
-*Calculate leaderboard server-side (increased bandwidth cost, but less client computation needed?)
+-TODO list: 
 
 Alpha:
+
+9/3/18:
+*Special nodes cannot be spawnpoints for new players, and do not increase unit capacity
+
+8/22/18:
+*Added portals
 
 8/14/18:
 *Moving unit lag handling improved, should now have no speed issues due to lag
 
 8/10/18:
 *Added turrets that destroy units from enemy moving groups within their range
-*Added explosion SFX when units are destroyed in combat
+*Added explosion effects when units are destroyed in combat
 
 8/8/18:
 *Optimized netcode for lag reduction
