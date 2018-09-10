@@ -278,7 +278,7 @@ FactoryNode.prototype.constructor = FactoryNode;
 function FactoryNode(position)
 {
 	Node.call(this,position,10);
-	this.size = 150*SIZE_SCALE;
+	this.size = 125*SIZE_SCALE;
 	this.nodeType = "factory";
 }
 //draws a hexagon
@@ -1179,7 +1179,9 @@ function processPackets(data)
 			node.addUnits(entry.team,entry.number,entry.effect)
 			break;
 			case "assault": //the node is being captured
-			node.capturePoints = entry.points
+			if (entry.points < 0)
+				console.log("Negative capture points?")
+			node.capturePoints = Math.max(entry.points,0)
 			node.captureTeam = entry.team
 			break;
 			case "capture": //the node has changed teams

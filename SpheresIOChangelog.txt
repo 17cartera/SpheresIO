@@ -11,8 +11,20 @@
 --Moving groups not properly being removed
 
 -TODO list: 
+*Rework spawning mechanics to give small players extra spawns
+*Allow the server to run constantly (with some restarts)
+*Add teleport effects to portals
 
 Alpha:
+
+9/9/18:
+*Balance Changes:
+--greatly increased spawn rate and spawn multiplier impact, spawn multiplier ignores first 100 units
+--turret ROF doubled
+--factories now spawn 3 units per second, ignoring spawn multiplier
+*Made factories slightly smaller
+*Fixed a graphical bug that could result from draining capture points from a node
+*Hopefully fixed a bug that could cause a node's capture value to become stuck
 
 9/3/18:
 *Special nodes cannot be spawnpoints for new players, and do not increase unit capacity

@@ -315,8 +315,9 @@ Node.prototype.addUnits = function(team,number,effect)
 Node.prototype.spawn = function() 
 {
 	this.spawning = true;
+	//let rate = NODE_SPAWN_RATE*this.level+TEAM_SPAWN_RATE/teams[this.team].controller.occupiedNodes.length;
 	let delay = (SPAWN_TIME*1000)/this.level;
-	delay *= 1+teams[this.team].controller.getTotalUnits()/UNITS_PER_SPAWN_MULTIPLIER;
+	delay *= 1+Math.max(teams[this.team].controller.getTotalUnits()-REINFORCEMENT_CAP,0)/UNITS_PER_SPAWN_MULTIPLIER;
 	if (this.fighting) delay *= FIGHT_SPAWN_MULTIPLIER; //units take twice as long to spawn while in combat
 	if (!teams[this.team].controller.isCapacityReached() && (this.getUnitsOfTeam(this.team).number != 0 || this.units.length == 0)) 
 	{
@@ -331,7 +332,7 @@ Node.prototype.spawn = function()
 //capturing function
 Node.prototype.capture = function() 
 {
-	if (this.units.length != 1) //if team is undefined, do not capture
+	if (this.units.length != 1) //if there are no units here or a combat, no capture can occur
 	{
 		this.capturing = false;
 		return;
@@ -340,13 +341,12 @@ Node.prototype.capture = function()
 	{
 		if (this.capturePoints <= 0)
 		{
-			this.capturePoints = 0; //set capture points to zero to prevent a drawing error
-			this.capturing == false;
+			this.capturing = false;
 			this.captureTeam = undefined;
 		}
 		else 
 		{
-			this.capturePoints -= 2; //recaptures at twice the rate
+			this.capturePoints = Math.max(this.capturePoints-2,0); //recaptures at twice the rate
 		}
 		addPacket({type:"assault",node:this.id,points:this.capturePoints,team:this.captureTeam}) //update the capture points on the node
 		return;
@@ -459,15 +459,23 @@ FactoryNode.prototype.constructor = FactoryNode;
 function FactoryNode(position)
 {
 	Node.call(this,position,10);
-	this.size = 150*SIZE_SCALE;
+	this.size = 125*SIZE_SCALE;
 	this.nodeType = "factory";
 }
 FactoryNode.prototype.spawn = function() //factory nodes do not spawn if in combat
 {
-	if(!this.fighting)
-		Node.prototype.spawn.call(this)
-	else
-		this.spawning = false;
+	this.spawning = true;
+	//let rate = NODE_SPAWN_RATE*this.level+TEAM_SPAWN_RATE/teams[this.team].controller.occupiedNodes.length;
+	let delay = 1000/FACTORY_PRODUCTION
+	if (!teams[this.team].controller.isCapacityReached() && this.units.length <= 1)
+	{
+		this.addUnits(this.team,1);
+		setTimeout(function(_this){_this.spawn();},delay,this);
+	}
+	else 
+	{
+		setTimeout(function(_this){_this.spawning = false;},delay,this);
+	}
 }
 //special node type: turret, shoots at nearby enemy unit groups
 TurretNode.prototype = new Node();
@@ -776,7 +784,7 @@ Controller.prototype.removeOccupiedNode = function(node)
 //calculates unit capacity
 Controller.prototype.calculateUnitCapacity = function() 
 {
-	this.unitCapacity = 10*UNITS_PER_LEVEL; //start at base capacity
+	this.unitCapacity = REINFORCEMENT_CAP; //start at base capacity
 	for (let n in this.occupiedNodes) //add capacity for each owned node
 	{
 		let node = this.occupiedNodes[n];
