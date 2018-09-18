@@ -215,17 +215,17 @@ Node.prototype.drawBody = function(viewport)
 	draw.arc(this.pos.x-viewport.x,this.pos.y-viewport.y,this.size,0,2*Math.PI,false);
 	draw.fill();
 }
-//gets the unit group for all units of the particular team
+//returns the amount of units of the given team on this node
 Node.prototype.getUnitsOfTeam = function(team)
 {
 	for (let index in this.units) 
 	{
 		let group = this.units[index];
 		if (group.team == team)
-			return group;
+			return group.number;
 	}
 	//if no group is found, return 0
-	return new Units(team,0);
+	return 0;
 }
 //sums the total amount of units on this node
 Node.prototype.getTotalUnits = function() 
@@ -508,7 +508,7 @@ function drawMain()
 	let vRight = graphics.x+graphics.width+100
 	let vBottom = graphics.y+graphics.height+100
 	//show the player's control range (first to show underneath all other elements)
-	draw.fillStyle = "rgb(25,25,25)";
+	draw.fillStyle = "rgb(12,12,12)";
 	for (let index in player.occupiedNodes)
 	{
 		let node = player.occupiedNodes[index];
@@ -614,23 +614,6 @@ ViewPort.prototype.addLaserEffect = function(pos1,pos2,color)
 {
 	this.effects.push({type:"laser",pos1:pos1,pos2:pos2,color:color,age:0})
 }
-//returns a random color for a team
-function generateRandomColor() 
-{
-	let isColorValid = false;
-	let red, green, blue;
-	while (!isColorValid) 
-	{
-		red = Math.floor(Math.random()*256);
-		green = Math.floor(Math.random()*256);
-		blue = Math.floor(Math.random()*256);
-		if (red+green+blue >= 50) //color must be bright enough
-		{
-			isColorValid = true;
-		}
-	}
-	return 'rgb(' + red + ',' + green + ',' + blue + ')';
-}
 
 ///leaderboard mechanic
 function LeaderBoard() 
@@ -726,7 +709,7 @@ Controller.prototype.removeOccupiedNode = function(node)
 			{
 				console.log("A player is eliminated")
 			}
-			return;
+			break;
 		}
 	}
 	this.calculateUnitCapacity();
@@ -749,7 +732,7 @@ Controller.prototype.getTotalUnits = function()
 	let totalUnits = 0;
 	for (let n in this.occupiedNodes) 
 	{
-		totalUnits += this.occupiedNodes[n].getUnitsOfTeam(this.team).number;
+		totalUnits += this.occupiedNodes[n].getUnitsOfTeam(this.team);
 	}
 	for (let n in movingUnits) 
 	{
@@ -780,9 +763,10 @@ function PlayerController(team)
 {
 	Controller.call(this,team);
 	this.selectedNodes = []; //nodes the player has currently selected
-	this.newGroups = []; //groups created during the most recent move order
+	this.lastMoved = []; this.lastTarget = undefined; //nodes involved in the last move order (for double-clicks)
 	this.selecting = false; //whether or not to select nodes the mouse hovers over
-	this.dragMode = false; //whether the user is dragging the camera
+	this.dragMode = false; //whether the user has clicked on empty space
+	this.pixelsMoved = 0; //amount of pixels the camera has been moved
 	this.boxSelectPoint = undefined; //the point that box select started on, or undefined if box select is inactive
 	this.mousePos; //the current mouse position
 	this.unitPercentage = 50; //percentage of units sent on move orders
@@ -859,8 +843,13 @@ PlayerController.prototype.getKeyboardInput = function(e)
 			*/
 		}
 		break;
+		case 27: //escape, clears selected nodes
+		for (let n in this.selectedNodes)
+			this.selectedNodes[n].selected = false;
+		this.selectedNodes = [];
+		break;
 		default:
-		//console.log("Unidentified Key " + e.keyCode)
+		console.log("Unidentified Key " + e.keyCode)
 		break;
 	}
 }
@@ -899,17 +888,9 @@ PlayerController.prototype.getMouseDown = function(e)
 	if (this.team !== undefined)
 	{
 		//detect the node that is clicked on
-		let node = null;
-		let potentialSelections = gameMap.checkAllInRange(this.mousePos,250);
-		for (let n in potentialSelections) 
-		{
-			if (Position.getDistance(this.mousePos,potentialSelections[n].pos) <= potentialSelections[n].size+50) 
-			{
-				node = potentialSelections[n];
-			}
-		}
+		let node = this.detectSelectedNode()
 		//if selectedNodes has no nodes in it, select the clicked node
-		if (node != null) 
+		if (node !=  undefined) 
 		{
 			this.selecting = true;
 			this.addSelectedNode(node);
@@ -930,17 +911,9 @@ PlayerController.prototype.getMouseMove = function(e)
 	if (this.team !== undefined && this.selecting)
 	{
 		//detect the node that the mouse is over
-		let node = null;
-		let potentialSelections = gameMap.checkAllInRange(this.mousePos,250);
-		for (let n in potentialSelections) 
-		{
-			if (Position.getDistance(this.mousePos,potentialSelections[n].pos) <= potentialSelections[n].size+50) 
-			{
-				node = potentialSelections[n];
-			}
-		}
+		let node = this.detectSelectedNode()
 		//select the clicked node
-		if (node != null) 
+		if (node != undefined) 
 		{
 			this.addSelectedNode(node);
 		}
@@ -954,6 +927,7 @@ PlayerController.prototype.getMouseMove = function(e)
 			graphics.x += dx;
 			graphics.y += dy;
 			nextPos.x += dx; nextPos.y += dy;
+			this.pixelsMoved += Math.abs(dx+dy)/graphics.zoomLevel
 		}
 	}
 	this.mousePos = nextPos;
@@ -969,65 +943,55 @@ PlayerController.prototype.getMouseUp = function(e)
 	{
 		this.selecting = false;
 		//detect the node that is clicked on
-		let node = null;
-		let potentialSelections = gameMap.checkAllInRange(this.mousePos,250);
-		for (let n in potentialSelections) 
-		{
-			if (Position.getDistance(this.mousePos,potentialSelections[n].pos) <= potentialSelections[n].size+30) //changed from +50 due to size change 
-			{
-				node = potentialSelections[n];
-			}
-		}
+		let node = this.detectSelectedNode()
 		//if a node is selected, move units between both nodes
-		if (node != null && (node != this.selectedNodes[0] || this.selectedNodes.length > 1))
+		if (node != undefined && (node != this.selectedNodes[0] || this.selectedNodes.length > 1))
 		{
+			this.lastTarget = node;
 			for (let x in this.selectedNodes) 
 			{
 				let otherNode = this.selectedNodes[x];
 				otherNode.selected = false;
-				let unitsTransferred = Math.floor(otherNode.getUnitsOfTeam(this.team).number*(this.unitPercentage/100));
-				if (node != null && node != otherNode)
+				let unitsTransferred = Math.floor(otherNode.getUnitsOfTeam(this.team)*(this.unitPercentage/100));
+				if (node != undefined && node != otherNode)
 				{
 					//console.log("Moving Units")
-					//this.newGroups.push(this.moveUnits(otherNode,node,unitsTransferred)); //creates a new moving group and pushes it to newGroups
-					socket.emit("move",{otherNode:otherNode.id,node:node.id,unitsTransferred:unitsTransferred})
+					this.lastMoved.push(otherNode)
+					socket.emit("move",{startNode:otherNode.id,endNode:node.id,unitsTransferred:unitsTransferred})
 				}
 			}
 			//initialize double click detection
-			setTimeout(function(_this){_this.newGroups = [];},500,this);
+			setTimeout(function(_this){_this.lastMoved = [];_this.lastTarget = undefined;},500,this);
 			//clear all selected nodes
 			this.selectedNodes = [];
 		}
 	}
 	else 
 	{
-		for (let x in this.selectedNodes)
-			this.selectedNodes[x].selected = false;
-		this.selectedNodes = [];
+		if (this.pixelsMoved <= 10) //deselect if the user clicked on empty space without dragging a significant distance
+		{
+			for (let n in this.selectedNodes)
+				this.selectedNodes[n].selected = false;
+			this.selectedNodes = [];
+		}
 		this.dragMode = false;
+		this.pixelsMoved = 0;
 	}
 }
 //gets a double click
 PlayerController.prototype.getDoubleClick = function(e) 
 {
 	console.log("Doubleclick detected")
-	for (let x in this.newGroups) 
+	for (let n in this.lastMoved)
 	{
-		//double the send amounts
-		let group = this.newGroups[x];
-		if (group != undefined)
-		{
-			let unitsAdded = group.startNode.getUnitsOfTeam(group.team).number;
-			group.startNode.addUnits(group.team,-unitsAdded);
-			group.number += unitsAdded;
-			//deselect the node selected by the single-click event
-			for (let n in this.selectedNodes)
-			{
-				this.selectedNodes[n].selected = false;
-			}
-			this.selectedNodes = [];
-		}
-	}
+		let node = this.lastMoved[n]
+		let unitsTransferred = node.getUnitsOfTeam(this.team)
+		socket.emit("move",{startNode:node.id,endNode:this.lastTarget.id,unitsTransferred:unitsTransferred})
+	}			
+	//deselect nodes
+	for (let n in this.selectedNodes)
+		this.selectedNodes[n].selected = false;
+	this.selectedNodes = [];
 }
 //updates the unit percentage
 PlayerController.prototype.changeUnitPercentage = function()
@@ -1035,6 +999,19 @@ PlayerController.prototype.changeUnitPercentage = function()
 	let value = unitSlider.value;
 	this.unitPercentage = value;
 	unitValue.innerHTML = value + "%"
+}
+//detects the node the player is clicking on
+PlayerController.prototype.detectSelectedNode = function()
+{
+	let potentialSelections = gameMap.checkAllInRange(this.mousePos,250);
+	for (let n in potentialSelections) 
+	{
+		if (Position.getDistance(this.mousePos,potentialSelections[n].pos) <= potentialSelections[n].size+30)
+		{
+			return potentialSelections[n];
+		}
+	}
+	return undefined;
 }
 
 //returns the object with the given ID, or undefined if none is present
@@ -1114,10 +1091,12 @@ function updateGameMap(data)
 		{
 			for (let u in entry.units) //update each unit group
 			{
-				let newUnits = entry.units[u]
+				/*
+				let newUnits = entry.units[u].number
 				let oldUnits = duplicate.getUnitsOfTeam(newUnits.team)
-				let difference = newUnits.number-oldUnits.number
+				let difference = newUnits-oldUnits
 				duplicate.addUnits(newUnits.team,difference)
+				*/
 			}
 			for (let n in duplicate.units) //check for groups that have been eliminated
 			{
@@ -1199,7 +1178,10 @@ function processPackets(data)
 			for (u in movingUnits)
 			{
 				if (movingUnits[u].id == entry.id)
-					group = movingUnits[u]
+				{
+					group = movingUnits[u];
+					break;
+				}
 			}
 			if (group != undefined)
 			{
@@ -1210,7 +1192,7 @@ function processPackets(data)
 					graphics.addLaserEffect(turret.pos,group.pos,teams[turret.team].color)
 				}
 				if (group.number <= 0) //delete the moving group if it is reduced to 0 units
-					delete movingUnits[u]
+					movingUnits.splice(u,1)
 			}
 			break;
 			case "addTeam": //a new team has spawned in

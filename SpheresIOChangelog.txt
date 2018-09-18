@@ -4,8 +4,6 @@
 --Likely due to poor handling of change in captureTeam?
 *Random colors can be too identical to each other
 *Double-clicking is nonfunctional
-*Attrition formula is incorrect?
---May become intended
 *Major errors regarding Firefox web browser
 *Lasers killing a player's last unit does not cause an elimination
 --Moving groups not properly being removed
@@ -16,6 +14,19 @@
 *Add teleport effects to portals
 
 Alpha:
+
+9/17/18:
+*Controls improvements:
+--Dragging over empty space no longer deselects nodes (though a normal click still will)
+--Double-clicking reimplemented, double-click to move all units from the start node(s) to the target node
+--Escape now deselects all nodes
+*non-special nodes with >100 units of a single team will now attrition units rather than spawning them
+*Slowed combat speed somewhat
+--Combat and capture speeds now no longer increase from adding additional units past 100
+*Fixed a visual bug that could cause moving groups to disappear
+*Fixed a bug that could show an incorrect unit capacity client-side
+*Corrected attrition formula and optimized attrition calculations
+*General code improvements (10% less spaghetti)
 
 9/9/18:
 *Balance Changes:

@@ -165,7 +165,7 @@ function gameTick()
 			node.capture();
 		}
 		//if a node is non-neutral, attempt to spawn
-		if (node.team != 0 && (node.getUnitsOfTeam(node.team).number != 0 || node.units.length == 0) && node.spawning == false)
+		if (node.team != 0 && (node.getUnitsOfTeam(node.team) != 0 || node.units.length == 0) && node.spawning == false)
 		{
 			node.spawn();
 		}
@@ -258,17 +258,17 @@ function Node(position,level)
 	this.capturePoints = 0; //percentage of base that was captured
 	this.captureTeam = undefined; //the team that is capturing the node (undefined if no team is capturing)
 }
-//gets the unit group for all units of the particular team
+//returns the amount of units of the given team on this node
 Node.prototype.getUnitsOfTeam = function(team)
 {
 	for (let index in this.units) 
 	{
 		let group = this.units[index];
 		if (group.team == team)
-			return group;
+			return group.number;
 	}
 	//if no group is found, return 0
-	return new Units(team,0);
+	return 0;
 }
 //sums the total amount of units on this node
 Node.prototype.getTotalUnits = function() 
@@ -278,7 +278,7 @@ Node.prototype.getTotalUnits = function()
 	{
 		sum += this.units[index].number;
 	}
-return sum;	
+	return sum;	
 }
 //adds (or removes if parameter is negative) units to the node
 Node.prototype.addUnits = function(team,number,effect) 
@@ -315,16 +315,21 @@ Node.prototype.addUnits = function(team,number,effect)
 Node.prototype.spawn = function() 
 {
 	this.spawning = true;
-	//let rate = NODE_SPAWN_RATE*this.level+TEAM_SPAWN_RATE/teams[this.team].controller.occupiedNodes.length;
+	let unitCount = this.getUnitsOfTeam(this.team)
 	let delay = (SPAWN_TIME*1000)/this.level;
 	delay *= 1+Math.max(teams[this.team].controller.getTotalUnits()-REINFORCEMENT_CAP,0)/UNITS_PER_SPAWN_MULTIPLIER;
 	if (this.fighting) delay *= FIGHT_SPAWN_MULTIPLIER; //units take twice as long to spawn while in combat
-	if (!teams[this.team].controller.isCapacityReached() && (this.getUnitsOfTeam(this.team).number != 0 || this.units.length == 0)) 
+	if (unitCount > MAX_UNITS) //if there are too many units here, slowly kill them off instead of spawning
+	{
+		this.addUnits(this.team,-1);
+		setTimeout(function(_this){_this.spawn();},1000,this);
+	}
+	else if (!teams[this.team].controller.isCapacityReached() && (unitCount != 0 || this.units.length == 0)) //normal spawning
 	{
 		this.addUnits(this.team,1);
 		setTimeout(function(_this){_this.spawn();},delay,this);
 	}
-	else 
+	else //set a delay to prevent instant respawning on the next game tick 
 	{
 		setTimeout(function(_this){_this.spawning = false;},delay,this);
 	}
@@ -384,7 +389,7 @@ Node.prototype.capture = function()
 	}
 	if (this.capturing)
 	{
-		let delay = (CAPTURE_TIME*100*this.level)/this.units[0].number;
+		let delay = (CAPTURE_TIME*100*this.level)/Math.min(this.units[0].number,MAX_UNITS);
 		setTimeout(function(_this){_this.capture();},delay,this);
 	}
 	addPacket({type:"assault",node:this.id,points:this.capturePoints,team:this.captureTeam})
@@ -404,11 +409,7 @@ Node.prototype.fight = function()
 {
 	//add the numbers of all teams to a total number
 	let unitNums = this.units;
-	var totalUnits = 0;
-	for(let x = 0; x < unitNums.length; x++)
-	{
-		totalUnits = +totalUnits + +unitNums[x].number;
-	}
+	var totalUnits = this.getTotalUnits()
 	//choose a random unit out of all units to attack
 	var attackerLocation = Math.floor(Math.random()*totalUnits)+1;
 	var attackerFound = false;
@@ -443,7 +444,7 @@ Node.prototype.fight = function()
 	//continue fighting if a fight is still needed 
 	if (unitNums.length > 1)
 	{
-		let delay = Math.min((FIGHT_TIME*10000)/(totalUnits),FIGHT_TIME*1000);
+		let delay = Math.min((FIGHT_TIME*10000)/(Math.min(totalUnits,MAX_UNITS)),FIGHT_TIME*1000);
 		setTimeout(function(_this){_this.fight();},delay,this);
 		this.fighting = true;
 	}
@@ -538,9 +539,10 @@ function MovingGroup(team,number,startNode,endNode)
 	this.direction = Position.getDirection(this.startNode.pos,this.endNode.pos);	
 	this.remainingDistance = Position.getDistance(this.startNode.pos,this.endNode.pos);
 	this.lastMoveTime = new Date(); //time when the last move order was executed, should be at most 17 without any lag
+	this.attritLosses = 0; //fractional component of losses to attrition
 }
 //moves the group towards its destination
-MovingGroup.prototype.move = function(dis) 
+MovingGroup.prototype.move = function() 
 {
 	//if there are 0 units on this node, destroy it
 	if (this.number <= 0)
@@ -567,11 +569,11 @@ MovingGroup.prototype.move = function(dis)
 	}
 	else 
 	{
-		this.checkForAttrition()
+		this.checkForAttrition(distance)
 	}
 }
 //checks for attrition
-MovingGroup.prototype.checkForAttrition = function()
+MovingGroup.prototype.checkForAttrition = function(distance)
 {
 	if (teams[this.team] == undefined)
 	{console.log("Invalid Moving Group Team"); console.log(this.number); return;}
@@ -588,25 +590,18 @@ MovingGroup.prototype.checkForAttrition = function()
 	let atritNumber = this.number
 	if (nearFriendly)
 	{
-		atritNumber -= MAX_UNITS_IN_GROUP
+		atritNumber -= MAX_UNITS
 	}
 	if (atritNumber > 0) //trigger attrition
 	{
-		//note: formula is currently inaccurate
-		//percentage of attrition per tick: (MOVE_SPEED/50)/ATRIT_RATE
-		let atritChance = (MOVE_SPEED/50)/ATRIT_RATE;
-		let losses = 0;
-		for (let x = 0; x < atritNumber; x++)
+		//percentage of attrition per tick: (distance travelled)/(ATRIT_RATE/ln(0.5)(aka -.693))
+		this.attritLosses += atritNumber * (distance/ATRIT_RATE)*.693;
+		if (this.attritLosses >= 1)
 		{
-			if (Math.random() < atritChance)
-			{
-				losses++;
-			}
-		}
-		if (losses > 0)
-		{
-			this.number -= losses;
-			addPacket({type:"groupLoss",id:this.id,number:losses})
+			let intLosses = Math.floor(this.attritLosses)
+			this.number -= intLosses;
+			addPacket({type:"groupLoss",id:this.id,number:intLosses})
+			this.attritLosses-= intLosses
 		}
 	}
 }
@@ -663,7 +658,7 @@ function generateRandomColor()
 		red = Math.floor(Math.random()*256);
 		green = Math.floor(Math.random()*256);
 		blue = Math.floor(Math.random()*256);
-		if (red+green+blue >= 50) //color must be bright enough
+		if (red+green+blue >= 60) //color must be bright enough
 		{
 			isColorValid = true;
 		}
@@ -799,7 +794,7 @@ Controller.prototype.getTotalUnits = function()
 	let totalUnits = 0;
 	for (let n in this.occupiedNodes) 
 	{
-		totalUnits += this.occupiedNodes[n].getUnitsOfTeam(this.team).number;
+		totalUnits += this.occupiedNodes[n].getUnitsOfTeam(this.team);
 	}
 	for (let n in movingUnits) 
 	{
@@ -863,7 +858,7 @@ BotController.prototype.runAI = function()
 		}
 		//make the chosen move
 		if (chosenMove != null)
-			this.moveUnits(chosenMove.origin,chosenMove.target,Math.floor(chosenMove.origin.getUnitsOfTeam(this.team).number*this.movePercentage));
+			this.moveUnits(chosenMove.origin,chosenMove.target,Math.floor(chosenMove.origin.getUnitsOfTeam(this.team)*this.movePercentage));
 		//occasionally change the move percentage
 		if (Math.random() < 0.1)
 			this.movePercentage = 0.3+Math.random()*0.6;
@@ -897,8 +892,8 @@ BotController.prototype.assignValues = function()
 		let origin = move.origin, target = move.target;
 		let originOwner = this.getOwner(origin); //1 for this control, -1 for enemy control, 0 for neutral control
 		let targetOwner = this.getOwner(target); //1 for this control, -1 for enemy control, 0 for neutral control
-		let originUnits = 2*origin.getUnitsOfTeam(this.team).number-origin.getTotalUnits(); //positive if friendlies outnumber enemies, negative otherwise
-		let targetUnits = 2*target.getUnitsOfTeam(this.team).number-target.getTotalUnits(); //positive if friendles outnumber enemies, negative otherwise
+		let originUnits = 2*origin.getUnitsOfTeam(this.team)-origin.getTotalUnits(); //positive if friendlies outnumber enemies, negative otherwise
+		let targetUnits = 2*target.getUnitsOfTeam(this.team)-target.getTotalUnits(); //positive if friendles outnumber enemies, negative otherwise
 		//analyze the target
 		if (targetOwner == 1) //target is allied
 		{
@@ -974,7 +969,7 @@ function PlayerController(team,client)
 	this.client.player = this
 	this.client.on('spawn', function(data) //the client is requesting to spawn in
 	{
-		console.log("Spawning New Player")
+		console.log("Spawning New Player " + data)
 		this.player.spawn(data)
 	});
 	this.client.on('move', function(data) //the client is sending a move order
@@ -1027,17 +1022,17 @@ PlayerController.prototype.spawn = function(name)
 //transmit a move order
 PlayerController.prototype.move = function(data)
 {
-	//get the node and othernode
-	let otherNode = getObjectById(data.otherNode)
-	let node = getObjectById(data.node)
+	//get the start node and end node
+	let startNode = getObjectById(data.startNode)
+	let endNode = getObjectById(data.endNode)
 	//verify that data is correct
-	if (otherNode == undefined || node == undefined)
+	if (startNode == undefined || endNode == undefined)
 	{
 		console.log("Invalid Move Packet Detected")
 		return;
 	}
 	//transmit the move order
-	this.moveUnits(otherNode,node,data.unitsTransferred)
+	this.moveUnits(startNode,endNode,data.unitsTransferred)
 }
 //handle player disconnect
 PlayerController.prototype.disconnect = function(data)
@@ -1059,7 +1054,7 @@ PlayerController.prototype.disconnect = function(data)
 	for (let n = this.occupiedNodes.length-1; n >= 0; n--)
 	{
 		let node = this.occupiedNodes[n]
-		let units = node.getUnitsOfTeam(this.team).number
+		let units = node.getUnitsOfTeam(this.team)
 		if (units > 0) //transform all units to
 		{
 			node.addUnits(this.team,-units,true)
