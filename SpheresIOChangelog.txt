@@ -18,6 +18,8 @@ Alpha:
 --A player's last unit cannot be destroyed while moving (due to potential for errors)
 --Fixed a bug that prevented the client from properly handling disconnects
 --Fixed a ping-related issue with moving units
+*Text elements on screen (leaderboard, population counter) now do not obstruct clicking
+*Smoothed out scrolling with arrow keys
 
 9/17/18:
 *Controls improvements:

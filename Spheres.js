@@ -488,7 +488,10 @@ function ViewPort(x,y,width,height)
 	this.width = width;
 	this.height = height;
 	this.zoomLevel = 1;
+	this.scrollDirections = new Set([])
 	this.effects = [];
+	this.lastDrawTime = new Date()
+	console.log(this.lastDrawTime)
 	let self = this;
 	this.handleResize() //adjust the screen initially
 	window.onresize = function(e) {self.handleResize(e);};
@@ -499,6 +502,18 @@ function ViewPort(x,y,width,height)
 //draws everything inside the viewport (could be optimized)
 function drawMain()
 {
+	//scroll screen
+	let newTime = new Date()
+	let difference = newTime - graphics.lastDrawTime
+	if (graphics.scrollDirections.has("Left"))
+		graphics.x -= 0.5*difference*graphics.zoomLevel
+	if (graphics.scrollDirections.has("Up"))
+		graphics.y -= 0.5*difference*graphics.zoomLevel
+	if (graphics.scrollDirections.has("Right"))
+		graphics.x += 0.5*difference*graphics.zoomLevel
+	if (graphics.scrollDirections.has("Down"))
+		graphics.y += 0.5*difference*graphics.zoomLevel
+	graphics.lastDrawTime = newTime
 	//set font size
 	draw.font = "" + (fontSize) + "px" + " sans-serif";
 	draw.textAlign = "center"
@@ -771,6 +786,7 @@ function PlayerController(team)
 	this.pixelsMoved = 0; //amount of pixels the camera has been moved
 	this.boxSelectPoint = undefined; //the point that box select started on, or undefined if box select is inactive
 	this.mousePos; //the current mouse position
+	//graphics.scrollDirections = new Set([]) //keys currently pressed
 	this.unitPercentage = 50; //percentage of units sent on move orders
 	//add control handlers
 	let self = this;
@@ -811,16 +827,16 @@ PlayerController.prototype.getKeyboardInput = function(e)
 	switch (e.keyCode) 
 	{
 		case 37: case 65: //left arrow or A
-		graphics.x -= 25*graphics.zoomLevel;
+		graphics.scrollDirections.add("Left")
 		break;
 		case 38: case 87: //up arrow or W
-		graphics.y -= 25*graphics.zoomLevel;
+		graphics.scrollDirections.add("Up")
 		break;
 		case 39: case 68: //right arrow or D
-		graphics.x += 25*graphics.zoomLevel;
+		graphics.scrollDirections.add("Right")
 		break;
 		case 40: case 83: //down arrow or S
-		graphics.y += 25*graphics.zoomLevel;
+		graphics.scrollDirections.add("Down")
 		break;
 		case 81: //Q
 		unitSlider.value -= 10;
@@ -858,7 +874,19 @@ PlayerController.prototype.getKeyboardInput = function(e)
 PlayerController.prototype.getKeyUp = function(e)
 {
 	switch (e.keyCode)
-	{
+	{		
+		case 37: case 65: //left arrow or A
+		graphics.scrollDirections.delete("Left")
+		break;
+		case 38: case 87: //up arrow or W
+		graphics.scrollDirections.delete("Up")
+		break;
+		case 39: case 68: //right arrow or D
+		graphics.scrollDirections.delete("Right")
+		break;
+		case 40: case 83: //down arrow or S
+		graphics.scrollDirections.delete("Down")
+		break;
 		case 32: //space, finish box select
 		if (this.boxSelectPoint != undefined)
 		{
@@ -959,9 +987,7 @@ PlayerController.prototype.getMouseUp = function(e)
 				{
 					//console.log("Moving Units")
 					this.lastMoved.push(otherNode)
-					
-					//socket.emit("move",{startNode:otherNode.id,endNode:node.id,unitsTransferred:unitsTransferred})
-					setTimeout(function() {socket.emit("move",{startNode:otherNode.id,endNode:node.id,unitsTransferred:unitsTransferred})},1000)
+					socket.emit("move",{startNode:otherNode.id,endNode:node.id,unitsTransferred:unitsTransferred})
 				}
 			}
 			//initialize double click detection
@@ -1002,7 +1028,7 @@ PlayerController.prototype.changeUnitPercentage = function()
 {
 	let value = unitSlider.value;
 	this.unitPercentage = value;
-	unitValue.innerHTML = value + "%"
+	unitValue.innerHTML = value + "%" //update the unit value text
 }
 //detects the node the player is clicking on
 PlayerController.prototype.detectSelectedNode = function()

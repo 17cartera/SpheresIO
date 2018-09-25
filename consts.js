@@ -20,7 +20,7 @@ function exportConsts(scope)
     scope.TURRET_ROF = 10; //amount of shots each turret can take per second
     scope.FACTORY_PRODUCTION = 3; //amount of units factories produce per second
     scope.fontSize = 16; //base font size    
-    /*testing config*/
+    /*testing config
     scope.MAP_SIZE = 1000;
     scope.MIN_NODES_TO_GENERATE = 10;
     scope.MAX_NODES_TO_GENERATE = 10;
@@ -38,7 +38,7 @@ function exportConsts(scope)
     scope.PORTALS_TO_GENERATE = 1; //amount of portals to place on the map
     scope.TURRETS_TO_GENERATE = 3; //amount of turrets to place on the map
     /**/
-    /*large map
+    /*large map*/
     scope.BOT_COUNT = 20; //recommended amount of AI teams
     scope.MAP_SIZE = 10000*scope.SIZE_SCALE; //height and width of the map
     scope.MIN_NODES_TO_GENERATE = 200//300; //minimum amount of nodes generated
