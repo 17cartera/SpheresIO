@@ -547,7 +547,10 @@ MovingGroup.prototype.move = function()
 	//if there are 0 units on this node, destroy it
 	if (this.number <= 0)
 	{
-		return "destroyed"
+		if (teams[this.team].controller.getTotalUnits() <= 0) //a team cannot lose their last unit to group losses (errors)
+			this.number == 1
+		else
+			return "destroyed"
 	}
 	let currentTime = new Date();
 	let distance = MOVE_SPEED*(currentTime-this.lastMoveTime)/1000
@@ -721,8 +724,10 @@ function Controller(team)
 //creates a moving group between the target node and the other node
 Controller.prototype.moveUnits = function(startNode,endNode,unitsTransferred)
 {
-	if (unitsTransferred != 0/* && Position.getDistance(startNode.pos,endNode.pos) <= MAX_RANGE */&& startNode != endNode) //extra checking of conditions
+	if (unitsTransferred != 0 && startNode != endNode) //extra checking of conditions
 	{
+		if (unitsTransferred > startNode.getUnitsOfTeam(this.team))
+			unitsTransferred = startNode.getUnitsOfTeam(this.team)
 		startNode.addUnits(this.team,-unitsTransferred);
 		if (startNode.nodeType == "portal" && startNode.team == this.team)
 		{
@@ -766,8 +771,8 @@ Controller.prototype.removeOccupiedNode = function(node)
 			{
 				console.log("Player " + teams[this.team].name + " (" + this.team + ")" + " has been eliminated")
 				//console.log(teams)
-				delete teams[this.team]
-				addPacket({type:"removeTeam",index:this.team})
+				delete teams[this.team];
+				addPacket({type:"removeTeam",index:this.team});
 				//teams[this.team] = undefined
 				//console.log(teams)
 			}
@@ -1040,7 +1045,7 @@ PlayerController.prototype.disconnect = function(data)
 	if (teams[this.team] != undefined)
 		console.log("Player " + teams[this.team].name + " (" + this.team + ")" + " has disconnected")
 	else
-		console.log("Player " + " (" + this.team + ")" + " has disconnected")
+		console.log("A spectator has disconnected")
 	for (let n = movingUnits.length-1; n >= 0; n--) //kill moving units
 	{
 		let group = movingUnits[n]
@@ -1055,13 +1060,18 @@ PlayerController.prototype.disconnect = function(data)
 	{
 		let node = this.occupiedNodes[n]
 		let units = node.getUnitsOfTeam(this.team)
-		if (units > 0) //transform all units to
+		if (units > 0) //transform all units to neutral units
 		{
 			node.addUnits(this.team,-units,true)
 			node.addUnits(0,units)
 		}
 		if (node.team == this.team)
 			node.changeTeam(0)
+		else if (node.captureTeam == this.team)
+		{
+			node.captureTeam = undefined; node.capturePoints = 0;
+			addPacket({type:"assault",node:node.id,points:node.capturePoints,team:node.captureTeam})
+		}
 	}
 	//delete players[this.team]
 }

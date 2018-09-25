@@ -252,6 +252,8 @@ Node.prototype.addUnits = function(team,number,effect)
 				for (let index = 0; index < -number; index += 1) 
 				{
 					let unitPos = group.unitMap[index];
+					if (unitPos == undefined) //abort if unitPos is invalid
+						break;
 					let unitx = this.pos.x+(Math.cos(unitPos.angle)*this.size*unitPos.distance);
 					let unity = this.pos.y+(Math.sin(unitPos.angle)*this.size*unitPos.distance);
 					graphics.addExplosionEffect(new Position(unitx,unity),teams[group.team].color)
@@ -849,7 +851,7 @@ PlayerController.prototype.getKeyboardInput = function(e)
 		this.selectedNodes = [];
 		break;
 		default:
-		console.log("Unidentified Key " + e.keyCode)
+		//console.log("Unidentified Key " + e.keyCode)
 		break;
 	}
 }
@@ -957,7 +959,9 @@ PlayerController.prototype.getMouseUp = function(e)
 				{
 					//console.log("Moving Units")
 					this.lastMoved.push(otherNode)
-					socket.emit("move",{startNode:otherNode.id,endNode:node.id,unitsTransferred:unitsTransferred})
+					
+					//socket.emit("move",{startNode:otherNode.id,endNode:node.id,unitsTransferred:unitsTransferred})
+					setTimeout(function() {socket.emit("move",{startNode:otherNode.id,endNode:node.id,unitsTransferred:unitsTransferred})},1000)
 				}
 			}
 			//initialize double click detection

@@ -3,10 +3,8 @@
 *Rarely, nodes can become stuck as neutral
 --Likely due to poor handling of change in captureTeam?
 *Random colors can be too identical to each other
-*Double-clicking is nonfunctional
 *Major errors regarding Firefox web browser
-*Lasers killing a player's last unit does not cause an elimination
---Moving groups not properly being removed
+*Bots attempt to use unowned portals for teleports
 
 -TODO list: 
 *Rework spawning mechanics to give small players extra spawns
@@ -15,11 +13,18 @@
 
 Alpha:
 
+9/24/18:
+*Bugfixes:
+--A player's last unit cannot be destroyed while moving (due to potential for errors)
+--Fixed a bug that prevented the client from properly handling disconnects
+--Fixed a ping-related issue with moving units
+
 9/17/18:
 *Controls improvements:
 --Dragging over empty space no longer deselects nodes (though a normal click still will)
 --Double-clicking reimplemented, double-click to move all units from the start node(s) to the target node
 --Escape now deselects all nodes
+*Reduced node density significantly
 *non-special nodes with >100 units of a single team will now attrition units rather than spawning them
 *Slowed combat speed somewhat
 --Combat and capture speeds now no longer increase from adding additional units past 100
