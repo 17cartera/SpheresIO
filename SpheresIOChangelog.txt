@@ -4,14 +4,20 @@
 --Likely due to poor handling of change in captureTeam?
 *Random colors can be too identical to each other
 *Major errors regarding Firefox web browser
-*Bots attempt to use unowned portals for teleports
 
 -TODO list: 
-*Rework spawning mechanics to give small players extra spawns
+*General game balancing
 *Allow the server to run constantly (with some restarts)
-*Add teleport effects to portals
+*Implement a victory condition
 
 Alpha:
+
+Next Release:
+*Implemented foreverJS to allow the server to remain up constantly
+*A player will now win the game if they take 75% of all available nodes (after which the server will restart)
+*Fixed a bug where bots would attempt to use unowned portals
+*Added a visual effect for teleportation
+*Prevented a client crash if there are too many effects on screen
 
 9/24/18:
 *Bugfixes:

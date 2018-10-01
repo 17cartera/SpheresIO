@@ -247,7 +247,7 @@ Node.prototype.addUnits = function(team,number,effect)
 		let group = this.units[index];
 		if (group.team == team) 
 		{
-			if (effect == true && number < 0) //generate explosion effects
+			if (effect == true && number < 0) //generate effects
 			{
 				for (let index = 0; index < -number; index += 1) 
 				{
@@ -491,7 +491,6 @@ function ViewPort(x,y,width,height)
 	this.scrollDirections = new Set([])
 	this.effects = [];
 	this.lastDrawTime = new Date()
-	console.log(this.lastDrawTime)
 	let self = this;
 	this.handleResize() //adjust the screen initially
 	window.onresize = function(e) {self.handleResize(e);};
@@ -569,25 +568,28 @@ function drawMain()
 	{
 		let effect = graphics.effects[e];
 		let maxAge;
-		switch(effect.type)
-		{	
-			case "explosion":
-			draw.globalAlpha = 0.6-effect.age*0.1
-			draw.fillStyle = effect.color || "rgb(255,255,255)";
-			draw.beginPath();
-			draw.arc(effect.pos.x-graphics.x,effect.pos.y-graphics.y,4+effect.age,0,2*Math.PI,false);
-			draw.fill();
-			maxAge = 6;
-			break;
-			case "laser":
-			draw.globalAlpha = 0.75-effect.age*0.25
-			draw.strokeStyle = effect.color || "rgb(255,255,255)"
-			draw.beginPath();
-			draw.moveTo(effect.pos1.x-graphics.x,effect.pos1.y-graphics.y);
-			draw.lineTo(effect.pos2.x-graphics.x,effect.pos2.y-graphics.y);
-			draw.stroke();
-			maxAge = 2;
-			break;
+		if (e < 250) //do not draw more than 250 effects
+		{
+			switch(effect.type)
+			{	
+				case "explosion":
+				draw.globalAlpha = 0.6-effect.age*0.1
+				draw.fillStyle = effect.color || "rgb(255,255,255)";
+				draw.beginPath();
+				draw.arc(effect.pos.x-graphics.x,effect.pos.y-graphics.y,4+effect.age,0,2*Math.PI,false);
+				draw.fill();
+				maxAge = 6;
+				break;
+				case "laser":
+				draw.globalAlpha = 0.75-effect.age*0.25
+				draw.strokeStyle = effect.color || "rgb(255,255,255)"
+				draw.beginPath();
+				draw.moveTo(effect.pos1.x-graphics.x,effect.pos1.y-graphics.y);
+				draw.lineTo(effect.pos2.x-graphics.x,effect.pos2.y-graphics.y);
+				draw.stroke();
+				maxAge = 2;
+				break;
+			}
 		}
 		effect.age++;
 		if (effect.age >= maxAge)
@@ -1011,7 +1013,7 @@ PlayerController.prototype.getMouseUp = function(e)
 //gets a double click
 PlayerController.prototype.getDoubleClick = function(e) 
 {
-	console.log("Doubleclick detected")
+	//console.log("Doubleclick detected")
 	for (let n in this.lastMoved)
 	{
 		let node = this.lastMoved[n]
@@ -1235,6 +1237,19 @@ function processPackets(data)
 			case "removeTeam": //a team has been eliminated
 			console.log("Removing Team")
 			setTimeout(function() {delete teams[entry.index];},1000) //remove after a delay to prevent errors
+			break;
+			case "teleport": //draw the teleport effect
+			for (let n = 1; n <= entry.number;n++)
+			{
+				let angle = Math.random()*2*Math.PI;
+				let distance = Math.random()*20;
+				let startPos = new Position(node.pos.x + distance*Math.cos(angle),node.pos.y + distance*Math.sin(angle))
+				let targetNode = getObjectById(entry.otherNode)
+				angle = Math.random()*2*Math.PI; //same angle on both start and end points?
+				distance = targetNode.size*(1.25+Math.random()*0.5)
+				let endPos = new Position(targetNode.pos.x+distance*Math.cos(angle),targetNode.pos.y+distance*Math.sin(angle))
+				graphics.addLaserEffect(startPos,endPos,teams[node.team].color)
+			}
 			break;
 		}
 	}

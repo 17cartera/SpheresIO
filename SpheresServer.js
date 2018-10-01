@@ -15,10 +15,7 @@ var players = []; //lists the playerController for all non-bot players
 var initialize = function() 
 {
 	console.log("beginning game");
-	//document.getElementById("title").style.visibility = "hidden";
 	gameBoard = new GameController();
-	//graphics = new ViewPort(0,0,window.innerWidth,window.innerHeight);
-	//player = new PlayerController(undefined);
 	leaderBoard = new LeaderBoard();
 }
 
@@ -31,7 +28,7 @@ function GameController()
 	console.log(neutralTeam.name)
 	teams[0] = neutralTeam;
 	this.generateMap(MAP_SIZE,MAP_SIZE);
-	setInterval(gameTick,100); //ticks game updates
+	this.gameLoop = setInterval(gameTick,100); //ticks game updates
 	//occasionally spawn in new bots
 	//setInterval(function(_this){_this.spawnNewPlayer(new BotController(teams.length),"Bot")},60000,this);
 }
@@ -39,11 +36,6 @@ function GameController()
 GameController.prototype.generateMap = function(height,width) 
 {
 	//start with special nodes
-	/*
-	let centerNode = new FactoryNode(new Position(width/2,height/2));
-	centerNode.addUnits(centerNode.team,100);
-	gameMap.addObject(centerNode);
-	*/
 	let x = 0;
 	while (x < FACTORIES_TO_GENERATE)
 	{
@@ -136,7 +128,7 @@ GameController.prototype.spawnNewPlayer = function(controller,name)
 			node.changeTeam(teamIndex);
 			node.addUnits(teamIndex,100);
 		}
-		else if (counter > 10000) //force a spawn over a player's node
+		else if (counter > 10000) //force a spawn over a player's node if necessary
 		{
 			console.log("No neutral nodes, forced to overspawn player")
 			isValidLocationFound = true;
@@ -146,6 +138,24 @@ GameController.prototype.spawnNewPlayer = function(controller,name)
 		}
 	}
 	return node;
+}
+//restarts the server
+GameController.prototype.restartGame = function()
+{
+	console.log("Restarting server")
+	//disconnect clients
+	for (let p in players)
+	{
+		players[p].client.disconnect()
+	}
+	//clear all data
+	clearInterval(this.gameLoop)
+	gameMap = new GameMap()
+	movingUnits = []
+	teams = {}
+	players = []
+	//reinitialize
+	initialize()
 }
 //triggers secondary timers
 function gameTick()
@@ -724,14 +734,15 @@ function Controller(team)
 //creates a moving group between the target node and the other node
 Controller.prototype.moveUnits = function(startNode,endNode,unitsTransferred)
 {
-	if (unitsTransferred != 0 && startNode != endNode) //extra checking of conditions
+	if (unitsTransferred != 0 && startNode != endNode) //check for valid move
 	{
-		if (unitsTransferred > startNode.getUnitsOfTeam(this.team))
+		if (unitsTransferred > startNode.getUnitsOfTeam(this.team)) //prevent moving more units than are available
 			unitsTransferred = startNode.getUnitsOfTeam(this.team)
 		startNode.addUnits(this.team,-unitsTransferred);
 		if (startNode.nodeType == "portal" && startNode.team == this.team)
 		{
 			endNode.addUnits(this.team,unitsTransferred);
+			addPacket({type:"teleport",number:unitsTransferred,node:startNode.id,otherNode:endNode.id})
 			return;
 		}
 		let moveGroup = new MovingGroup(this.team,unitsTransferred,startNode,endNode);
@@ -755,8 +766,14 @@ Controller.prototype.addOccupiedNode = function(node)
 	if (!isDuplicate)
 	{
 		this.occupiedNodes.push(node);
+		this.calculateUnitCapacity();
+		//check for victory conditions
+		if (this.occupiedNodes.length >= gameMap.allObjects.length*0.75 && this.team != 0)
+		{
+			console.log("A team has won the game!")
+			gameBoard.restartGame()
+		}
 	}
-	this.calculateUnitCapacity();
 }
 //removes a controlled node
 Controller.prototype.removeOccupiedNode = function(node) 
@@ -876,7 +893,7 @@ BotController.prototype.getData = function()
 	for (let n1 in this.occupiedNodes) 
 	{
 		let originNode = this.occupiedNodes[n1]; let availableTargets;
-		if (originNode.nodeType == "portal")
+		if (originNode.nodeType == "portal" && originNode.team == this.team)
 			availableTargets = gameMap.allObjects;
 		else
 			availableTargets = gameMap.checkAllInRange(originNode.pos,MAX_RANGE);
@@ -1132,7 +1149,7 @@ io.on('connection', function(client)
 		players.push(new PlayerController(0,client))
 		//client.emit("teams",teams)
 		//client.emit("map",gameMap.allObjects)
-    });
+	});
     //distribute messages back to client
 })
 //load up the server
