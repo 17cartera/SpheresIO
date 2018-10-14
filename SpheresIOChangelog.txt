@@ -13,6 +13,13 @@
 Alpha:
 
 Next Release:
+*Reduced bot tendancy to sit on massive amounts of units
+*Turret ranges will now draw if the turret is out of view
+*Completely rewrote capturing code to utterly annihilate nodes that get stuck as neutral
+*Fixed a bug that could cause a team's unit capacity to not properly update
+*Random code cleanup
+
+10/1/18:
 *Implemented foreverJS to allow the server to remain up constantly
 *A player will now win the game if they take 75% of all available nodes (after which the server will restart)
 *Fixed a bug where bots would attempt to use unowned portals

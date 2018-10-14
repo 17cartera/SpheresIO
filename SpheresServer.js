@@ -235,22 +235,6 @@ GameMap.prototype.checkAllInRange = function(pos,range)
 	}
 	return output;
 }
-//draws the grid
-/*
-GameMap.prototype.drawGrid = function() 
-{
-	draw.strokeStyle = "rgb(200,200,200)";
-	draw.lineWidth = 2;
-	for (let x = 0; x < this.size; x++)
-	{
-		for (let y = 0; y < this.size; y++)
-		{
-			draw.strokeRect(x*HASH_SIZE-graphics.x,y*HASH_SIZE-graphics.y,HASH_SIZE,HASH_SIZE);
-		}
-	}
-}
-*/
-//}
 
 //class for nodes
 function Node(position,level) 
@@ -304,9 +288,7 @@ Node.prototype.addUnits = function(team,number,effect)
 			{
 				//log when negative units occur
 				if (group.number < 0)
-				{
 					console.log("Negative units detected")
-				}
 				this.units.splice(index,1);
 				if (this.team != group.team) teams[group.team].controller.removeOccupiedNode(this);
 			}
@@ -339,7 +321,7 @@ Node.prototype.spawn = function()
 		this.addUnits(this.team,1);
 		setTimeout(function(_this){_this.spawn();},delay,this);
 	}
-	else //set a delay to prevent instant respawning on the next game tick 
+	else //set a delay to prevent instant respawning on the next update tick
 	{
 		setTimeout(function(_this){_this.spawning = false;},delay,this);
 	}
@@ -347,22 +329,17 @@ Node.prototype.spawn = function()
 //capturing function
 Node.prototype.capture = function() 
 {
+	this.capturing = false; //set this to false by default
 	if (this.units.length != 1) //if there are no units here or a combat, no capture can occur
 	{
-		this.capturing = false;
 		return;
 	}
 	if (this.captureTeam != undefined && this.units[0].team != this.captureTeam) //if another team arrives, they drain the capture points
 	{
-		if (this.capturePoints <= 0)
-		{
-			this.capturing = false;
+		if (this.capturePoints <= 0)//clear the capture
 			this.captureTeam = undefined;
-		}
-		else 
-		{
-			this.capturePoints = Math.max(this.capturePoints-2,0); //recaptures at twice the rate
-		}
+		else //slowly drain the capture points
+			this.capturePoints = Math.max(this.capturePoints-2,0);
 		addPacket({type:"assault",node:this.id,points:this.capturePoints,team:this.captureTeam}) //update the capture points on the node
 		return;
 	}
@@ -373,32 +350,18 @@ Node.prototype.capture = function()
 		if (this.team != 0) 
 		{	
 			this.changeTeam(0);
-			this.capturing = true; //still capturing to turn it to team's control
 		}
 		else
 		{
 			this.changeTeam(this.units[0].team);
-			this.capturing = false;
 		}
 		this.captureTeam = undefined;
 		this.capturePoints = 0;
 	}
 	else 
 	{
-		//if the units have left the node, stop capturing
-		if (this.units[0].number == 0) 
-		{
-			this.capturePoints = 0;
-			this.capturing = false;
-		}
-		else 
-		{
-			this.capturePoints++;
-			this.capturing = true;
-		}
-	}
-	if (this.capturing)
-	{
+		this.capturePoints++;
+		this.capturing = true; //currently capturing, do not trigger a game update tick on this
 		let delay = (CAPTURE_TIME*100*this.level)/Math.min(this.units[0].number,MAX_UNITS);
 		setTimeout(function(_this){_this.capture();},delay,this);
 	}
@@ -408,10 +371,10 @@ Node.prototype.capture = function()
 Node.prototype.changeTeam = function(newTeam) 
 {
 	if (this.team != 0) 
-	{teams[this.team].controller.removeOccupiedNode(this);} //team 0 does not have a controller
+		{teams[this.team].controller.removeOccupiedNode(this);} //team 0 does not have a controller
 	this.team = newTeam;
-	if (this.team != 0) 
-	{teams[this.team].controller.addOccupiedNode(this);} //team 0 does not have a controller
+	if (newTeam != 0) 
+		{teams[newTeam].controller.addOccupiedNode(this);} //team 0 does not have a controller
 	addPacket({type:"capture",node:this.id,team:newTeam})
 }
 //combat mechanics system (ported from BattleFunction program)
@@ -426,30 +389,16 @@ Node.prototype.fight = function()
 	var index = 0;
 	while (!attackerFound)
 	{
-		if (unitNums[index] == undefined)
-		{
-			console.log("Error detected: invalid unitNums[index]")
-			console.log(unitNums)
-			console.log(index)
-			this.fighting = false
-			break;
-		}
 		attackerLocation -= unitNums[index].number //subtract the unitnums from this
 		if (attackerLocation <= 0) //if this is <= 0, the attacker is in the current index
-		{
 			attackerFound = true;
-		}
 		else
-		{
 			index++;
-		}
 	}
-	for(let x = 0; x < unitNums.length; x++) //every array that is not the attacker loses 1 unit
+	for (let x = 0; x < unitNums.length; x++) //every array that is not the attacker loses 1 unit
 	{
 		if (x != index)
-		{
 			this.addUnits(unitNums[x].team,-1,true)
-		}
 	}
 	//continue fighting if a fight is still needed 
 	if (unitNums.length > 1)
@@ -635,7 +584,7 @@ setInterval(moveAllGroups,1000/60)
 //a simple position object, used for certain inherited methods
 function Position(x,y)
 {
-		this.x = x; this.y = y;
+	this.x = x; this.y = y;
 }
 //returns the distance between two Position objects
 Position.getDistance = function(pos1,pos2) 
@@ -646,10 +595,8 @@ Position.getDistance = function(pos1,pos2)
 Position.getDirection = function(pos1,pos2)
 {
 	let result = Math.atan2(pos2.y-pos1.y,pos2.x-pos1.x);
-	if (result == 0) 
-	{
+	if (result == 0) //what is this for?
 		console.log("invalid direction");
-	}
 	return result;
 }
 
@@ -672,9 +619,7 @@ function generateRandomColor()
 		green = Math.floor(Math.random()*256);
 		blue = Math.floor(Math.random()*256);
 		if (red+green+blue >= 60) //color must be bright enough
-		{
 			isColorValid = true;
-		}
 	}
 	return 'rgb(' + red + ',' + green + ',' + blue + ')';
 }
@@ -766,7 +711,6 @@ Controller.prototype.addOccupiedNode = function(node)
 	if (!isDuplicate)
 	{
 		this.occupiedNodes.push(node);
-		this.calculateUnitCapacity();
 		//check for victory conditions
 		if (this.occupiedNodes.length >= gameMap.allObjects.length*0.75 && this.team != 0)
 		{
@@ -774,6 +718,7 @@ Controller.prototype.addOccupiedNode = function(node)
 			gameBoard.restartGame()
 		}
 	}
+	this.calculateUnitCapacity(); //an addOccupiedNode call triggers on a team change, so always recalculate unit capacity
 }
 //removes a controlled node
 Controller.prototype.removeOccupiedNode = function(node) 
@@ -886,7 +831,7 @@ BotController.prototype.runAI = function()
 			this.movePercentage = 0.3+Math.random()*0.6;
 	}
 }
-//gets data
+//gets a list of all potential moves
 BotController.prototype.getData = function() 
 {
 	this.availableMoves = []; //get all available moves for the AI
@@ -905,7 +850,7 @@ BotController.prototype.getData = function()
 		}
 	}
 }
-//assign values
+//assign values to potential moves
 BotController.prototype.assignValues = function() 
 {
 	for (let m in this.availableMoves) 
@@ -920,43 +865,29 @@ BotController.prototype.assignValues = function()
 		if (targetOwner == 1) //target is allied
 		{
 			if (targetUnits <= -5 && originUnits*this.movePercentage > -targetUnits) //target ally is under attack
-			{
 				move.value += (2+target.level+target.getTotalUnits()/10)*this.defenseWeight; //high-value move
-			}
 		}
 		if (targetOwner == 0) //target is neutral
 		{
 			if (originUnits*this.movePercentage > -targetUnits+10)
-			{
 				move.value += (2+target.level+target.getTotalUnits()/10)*this.expansionWeight; //target can be captured
-			}
 			else 
-			{
 				move.value -= 5; //if the target is strong enough to resist the attack, avoid this move
-			}
 		}
 		if (targetOwner == -1) //target is enemy
 		{
 			if (originUnits*this.movePercentage > -targetUnits+10 || Math.random() < this.attackWeight/200)
-			{
 				move.value += (2+target.level+target.getTotalUnits()/10)*this.attackWeight; //target is vulnerable to attack
-			}
 			else 
-			{
 				move.value -= 5; //if the target is strong enough to resist the attack, avoid this move
-			}
 		}
 		//analyze the origin
 		if (originOwner == 1) //origin is allied 
 		{
 			if (originUnits != origin.getTotalUnits()) //defensive action on this node, hold position
-			{
 				move.value -= 5;
-			}
-			if (targetOwner == 1 && target.nodeType == "portal") //send forces to portals to prepare attacks
-			{
-				move.value += 1;
-			}
+			else if (origin.getTotalUnits() >= MAX_UNITS) //avoid sitting on max units
+				move.value += 5;
 		}
 		if (originOwner == 0) //target is neutral
 		{
@@ -965,13 +896,9 @@ BotController.prototype.assignValues = function()
 		if (originOwner == -1) //target is enemy
 		{
 			if (originUnits <= -10) //units are being overwhelmed
-			{
 				move.value += this.defenseWeight; //high-value move to evacuate
-			}
 			else 
-			{
 				move.value -= 3*origin.level*this.attackWeight; //avoid removing units from a moderately effective attack
-			}
 		}
 	}
 }

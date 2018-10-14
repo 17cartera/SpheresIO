@@ -312,16 +312,18 @@ TurretNode.prototype.drawBody = function(viewport)
 	draw.fillRect(this.pos.x-viewport.x-this.size*.75,this.pos.y-viewport.y-this.size*.75,this.size*1.5,this.size*1.5);
 	//show the laser's range
 	if (this.team != 0)
-	{
-		draw.strokeStyle = teams[this.team].color;
-		draw.lineWidth = 2;
-		draw.globalAlpha = 0.3;
-		draw.beginPath();
-		draw.arc(this.pos.x-viewport.x,this.pos.y-viewport.y,TURRET_RANGE,0,2*Math.PI);
-		draw.stroke();
-		draw.globalAlpha = 1;
-	}
+		this.drawRange(viewport)
 }
+//shows a turret's range
+TurretNode.prototype.drawRange = function(viewport)
+{
+	draw.strokeStyle = teams[this.team].color;
+	draw.lineWidth = 2;
+	draw.globalAlpha = 0.3;
+	draw.beginPath();
+	draw.arc(this.pos.x-viewport.x,this.pos.y-viewport.y,TURRET_RANGE,0,2*Math.PI);
+	draw.stroke();
+	draw.globalAlpha = 1;}
 //special node type: portal, teleports units of the controlled team
 PortalNode.prototype = new Node();
 PortalNode.prototype.constructor = PortalNode;
@@ -423,7 +425,7 @@ setInterval(moveAllGroups,1000/60)
 //a simple position object, used for certain inherited methods
 function Position(x,y)
 {
-		this.x = x; this.y = y;
+	this.x = x; this.y = y;
 }
 //returns the distance between two Position objects
 Position.getDistance = function(pos1,pos2) 
@@ -434,10 +436,8 @@ Position.getDistance = function(pos1,pos2)
 Position.getDirection = function(pos1,pos2)
 {
 	let result = Math.atan2(pos2.y-pos1.y,pos2.x-pos1.x);
-	if (result == 0) 
-	{
+	if (result == 0)//what is this for?
 		console.log("invalid direction");
-	}
 	return result;
 }
 //an object for a unit group (may not be needed)
@@ -552,6 +552,8 @@ function drawMain()
 		//only draw if the object is near the viewport
 		if (node.pos.x >= vLeft && node.pos.y >= vTop && node.pos.x <= vRight && node.pos.y <= vBottom)
 			node.drawObject(graphics);
+		else if (node.nodeType == "turret" && node.team != 0) //draw turret ranges if they aren't in view
+			node.drawRange(graphics);
 	}
 	//update the unit indicator
 	unitCounter.innerHTML = "POP:" + player.getTotalUnits() + "/" + player.unitCapacity
@@ -1038,10 +1040,8 @@ PlayerController.prototype.detectSelectedNode = function()
 	let potentialSelections = gameMap.checkAllInRange(this.mousePos,250);
 	for (let n in potentialSelections) 
 	{
-		if (Position.getDistance(this.mousePos,potentialSelections[n].pos) <= potentialSelections[n].size+30)
-		{
+		if (Position.getDistance(this.mousePos,potentialSelections[n].pos) <= potentialSelections[n].size+40)
 			return potentialSelections[n];
-		}
 	}
 	return undefined;
 }
@@ -1064,7 +1064,6 @@ function updateTeams(data)
 	for (let n in data)
 	{
 		let entry = data[n]
-		//let newTeam = new Team(entry.color,new Controller(),entry.name)
 		//test to ensure the teams are not duplicated
 		if (teams[entry.index] == undefined)
 		{
