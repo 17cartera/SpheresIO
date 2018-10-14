@@ -12,7 +12,7 @@
 
 Alpha:
 
-Next Release:
+10/14/18:
 *Reduced bot tendancy to sit on massive amounts of units
 *Turret ranges will now draw if the turret is out of view
 *Completely rewrote capturing code to utterly annihilate nodes that get stuck as neutral
