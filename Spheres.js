@@ -1235,7 +1235,7 @@ function processPackets(data)
 			break;
 			case "removeTeam": //a team has been eliminated
 			console.log("Removing Team")
-			setTimeout(function() {delete teams[entry.index];},1000) //remove after a delay to prevent errors
+			setTimeout(function() {delete teams[entry.index];},10) //remove after a short delay to prevent errors
 			break;
 			case "teleport": //draw the teleport effect
 			for (let n = 1; n <= entry.number;n++)

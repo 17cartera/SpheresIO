@@ -6,11 +6,16 @@
 *Major errors regarding Firefox web browser
 
 -TODO list: 
-*General game balancing
-*Allow the server to run constantly (with some restarts)
-*Implement a victory condition
+*Add terrain shifting
+*Restart the server every so often
 
 Alpha:
+
+Next release:
+*Occasionally, bots will randomly be spawned into the game
+*Improved attrition mechanics for too many units on a node
+--Stacks greater than max units will now suffer constant attrition while on any non-special node
+--Any attrition being suffered on a node will prevent it from spawning (even for a player who isn't suffering attrition there)
 
 10/14/18:
 *Reduced bot tendancy to sit on massive amounts of units

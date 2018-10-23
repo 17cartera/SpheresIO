@@ -29,8 +29,6 @@ function GameController()
 	teams[0] = neutralTeam;
 	this.generateMap(MAP_SIZE,MAP_SIZE);
 	this.gameLoop = setInterval(gameTick,100); //ticks game updates
-	//occasionally spawn in new bots
-	//setInterval(function(_this){_this.spawnNewPlayer(new BotController(teams.length),"Bot")},60000,this);
 }
 //generates a map
 GameController.prototype.generateMap = function(height,width) 
@@ -70,7 +68,7 @@ GameController.prototype.generateMap = function(height,width)
 	let t = 1;
 	while (t <= BOT_COUNT) 
 	{
-		this.spawnNewPlayer(new BotController(teams.length),"Bot");
+		this.spawnNewPlayer(new BotController(0),"Bot");
 		t++;
 	}
 }
@@ -163,26 +161,28 @@ function gameTick()
 	for (let index in gameMap.allObjects)
 	{
 		let node = gameMap.allObjects[index];
-		
 		//if a node has more than one team of units on it, start a battle
-		if (node.units.length > 1 && node.fighting == false) 
-		{
+		if (node.units.length > 1 && !node.fighting) 
 			node.fight(node.units);
-		}
 		//if a node is under control by units from a different team than its own team, capture it
-		if (node.units.length == 1 && node.capturing == false && (node.units[0].team != node.team || node.capturePoints > 0)) 
-		{
+		if (node.units.length == 1 && (node.units[0].team != node.team || node.capturePoints > 0) && !node.capturing) 
 			node.capture();
-		}
 		//if a node is non-neutral, attempt to spawn
-		if (node.team != 0 && (node.getUnitsOfTeam(node.team) != 0 || node.units.length == 0) && node.spawning == false)
-		{
+		if (node.team != 0 && (node.getUnitsOfTeam(node.team) != 0 || node.units.length == 0) && !node.spawning)
 			node.spawn();
-		}
+		//check nonspecial nodes for attrition
+		if (node.nodeType == undefined && !node.attrition)
+			node.checkForAttrition();
+	}
+	//console.log(teams.length)
+	if (Math.random()*1000 <= 1) //spawn bots every so often
+	{
+		console.log("Spawning a new bot")
+		gameBoard.spawnNewPlayer(new BotController(teams.length),"Bot");
 	}
 }
 ///hash map code
-function GameMap() 
+function GameMap()
 {
 	this.size = MAP_SIZE/HASH_SIZE;
 	this.allObjects = []; //contains all objects on the map
@@ -245,10 +245,10 @@ function Node(position,level)
 	this.size = (20+10*level)*SIZE_SCALE; //size of the node is based on level
 	this.team = 0; //nodes are created neutral by default
 	this.units = []; //a listing of all unit groups that are on this node
-	this.selected = false; //whether the user has selected this node
 	this.fighting = false; //whether or not the node is fighting
 	this.capturing = false; //whether or not the node is being captured
 	this.spawning = false; //whether or not the node is spawning units
+	this.attrition = false; //whether this node is suffering attrition
 	this.capturePoints = 0; //percentage of base that was captured
 	this.captureTeam = undefined; //the team that is capturing the node (undefined if no team is capturing)
 }
@@ -303,6 +303,16 @@ Node.prototype.addUnits = function(team,number,effect)
 	let packet = {type:"units",node:this.id,team:team,number:number,effect:effect}
 	addPacket(packet)
 }
+//method to properly change the team of a node
+Node.prototype.changeTeam = function(newTeam) 
+{
+	if (this.team != 0) 
+		{teams[this.team].controller.removeOccupiedNode(this);} //team 0 does not have a controller
+	this.team = newTeam;
+	if (newTeam != 0) 
+		{teams[newTeam].controller.addOccupiedNode(this);} //team 0 does not have a controller
+	addPacket({type:"capture",node:this.id,team:newTeam})
+}
 //spawns a unit at this node if conditions are right 
 Node.prototype.spawn = function() 
 {
@@ -311,12 +321,8 @@ Node.prototype.spawn = function()
 	let delay = (SPAWN_TIME*1000)/this.level;
 	delay *= 1+Math.max(teams[this.team].controller.getTotalUnits()-REINFORCEMENT_CAP,0)/UNITS_PER_SPAWN_MULTIPLIER;
 	if (this.fighting) delay *= FIGHT_SPAWN_MULTIPLIER; //units take twice as long to spawn while in combat
-	if (unitCount > MAX_UNITS) //if there are too many units here, slowly kill them off instead of spawning
-	{
-		this.addUnits(this.team,-1);
-		setTimeout(function(_this){_this.spawn();},1000,this);
-	}
-	else if (!teams[this.team].controller.isCapacityReached() && (unitCount != 0 || this.units.length == 0)) //normal spawning
+	//conditions: must not be dealing with attrition, must not be at capacity, must have friendly units or no units
+	if (!this.attrition && !teams[this.team].controller.isCapacityReached() && (unitCount != 0 || this.units.length == 0))
 	{
 		this.addUnits(this.team,1);
 		setTimeout(function(_this){_this.spawn();},delay,this);
@@ -331,9 +337,7 @@ Node.prototype.capture = function()
 {
 	this.capturing = false; //set this to false by default
 	if (this.units.length != 1) //if there are no units here or a combat, no capture can occur
-	{
 		return;
-	}
 	if (this.captureTeam != undefined && this.units[0].team != this.captureTeam) //if another team arrives, they drain the capture points
 	{
 		if (this.capturePoints <= 0)//clear the capture
@@ -366,16 +370,6 @@ Node.prototype.capture = function()
 		setTimeout(function(_this){_this.capture();},delay,this);
 	}
 	addPacket({type:"assault",node:this.id,points:this.capturePoints,team:this.captureTeam})
-}
-//method to properly change the team of a node
-Node.prototype.changeTeam = function(newTeam) 
-{
-	if (this.team != 0) 
-		{teams[this.team].controller.removeOccupiedNode(this);} //team 0 does not have a controller
-	this.team = newTeam;
-	if (newTeam != 0) 
-		{teams[newTeam].controller.addOccupiedNode(this);} //team 0 does not have a controller
-	addPacket({type:"capture",node:this.id,team:newTeam})
 }
 //combat mechanics system (ported from BattleFunction program)
 Node.prototype.fight = function()
@@ -413,6 +407,23 @@ Node.prototype.fight = function()
 	}
 	return unitNums; //returns unitNums if needed
 }
+//attritions away units from the node if >100 are present
+Node.prototype.checkForAttrition = function()
+{
+	this.attrition = false //will be set to true by later events
+	for (let index in this.units) 
+	{
+		let group = this.units[index];
+		if (group.number > MAX_UNITS)
+		{
+			this.attrition = true;
+			this.addUnits(group.team,-1)
+			let delay = Math.min((NODE_ATRIT_TIME*5000*this.level)/(group.number-MAX_UNITS),NODE_ATRIT_TIME*1000);
+			setTimeout(function(_this){_this.checkForAttrition();},delay,this);
+		}
+	}
+}
+
 //special node type: factory, high production unless fighting
 FactoryNode.prototype = new Node();
 FactoryNode.prototype.constructor = FactoryNode;
