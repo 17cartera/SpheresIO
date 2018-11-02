@@ -20,18 +20,24 @@ function exportConsts(scope)
     scope.TURRET_RANGE = 1000*scope.SIZE_SCALE //range of turrets
     scope.TURRET_ROF = 10; //amount of shots each turret can take per second
     scope.FACTORY_PRODUCTION = 3; //amount of units factories produce per second
+    scope.CORE_ROTATION = 10; //amount of degrees per second of rotation nodes get around their core
+    scope.CORE_SIZE = 200; //size of cores
     scope.fontSize = 16; //base font size  
     /*testing config
+    scope.BOT_COUNT = 1; //maximum amount of AI teams present
+    scope.MIN_PLAYERS = 2; //minimum amount of total players before no more AI teams should be spawned
+    scope.MAX_PLAYERS = 4; //maximum amount of players the server can support
     scope.MAP_SIZE = 1000;
     scope.MIN_NODES_TO_GENERATE = 10;
     scope.MAX_NODES_TO_GENERATE = 10;
     scope.FACTORIES_TO_GENERATE = 1; //amount of factories to place on the map
     scope.PORTALS_TO_GENERATE = 1; //amount of portals to place on the map
     scope.TURRETS_TO_GENERATE = 1; //amount of turrets to place on the map
-    scope.BOT_COUNT = 0;
     /**/
     /*small map
-    scope.BOT_COUNT = 5; //recommended amount of AI teams
+    scope.BOT_COUNT = 5; //maximum amount of AI teams present
+    scope.MIN_PLAYERS = 10; //minimum amount of total players before no more AI teams should be spawned
+    scope.MAX_PLAYERS = 20; //maximum amount of players the server can support
     scope.MAP_SIZE = 5000*scope.SIZE_SCALE; //height and width of the map
     scope.MIN_NODES_TO_GENERATE = 100; //minimum amount of nodes generated
     scope.MAX_NODES_TO_GENERATE = 150; //maximum amount of nodes generated
@@ -40,7 +46,9 @@ function exportConsts(scope)
     scope.TURRETS_TO_GENERATE = 3; //amount of turrets to place on the map
     /**/
     /*large map*/
-    scope.BOT_COUNT = 20; //recommended amount of AI teams
+    scope.BOT_COUNT = 5; //maximum amount of AI teams present
+    scope.MIN_PLAYERS = 10; //minimum amount of total players before no more AI teams should be spawned
+    scope.MAX_PLAYERS = 40; //maximum amount of players the server can support
     scope.MAP_SIZE = 10000*scope.SIZE_SCALE; //height and width of the map
     scope.MIN_NODES_TO_GENERATE = 200//300; //minimum amount of nodes generated
     scope.MAX_NODES_TO_GENERATE = 200//400; //maximum amount of nodes generated
@@ -49,7 +57,9 @@ function exportConsts(scope)
     scope.TURRETS_TO_GENERATE = 10; //amount of turrets to place on the map
     /**/
     /*massive map
-    scope.BOT_COUNT = 100; //recommended amount of AI teams
+    scope.BOT_COUNT = 10; //maximum amount of AI teams present
+    scope.MIN_PLAYERS = 25; //minimum amount of total players before no more AI teams should be spawned
+    scope.MAX_PLAYERS = 100; //maximum amount of players the server can support
     scope.MAP_SIZE = 20000*scope.SIZE_SCALE; //height and width of the map
     scope.MIN_NODES_TO_GENERATE = 1000; //minimum amount of nodes generated
     scope.MAX_NODES_TO_GENERATE = 1000; //maximum amount of nodes generated

@@ -89,6 +89,55 @@ GameMap.prototype.addObject = function(object)
 	let y = Math.floor(object.pos.y/HASH_SIZE);
 	this.map[x][y].push(object);
 }
+//removes an object from the grid
+GameMap.prototype.removeObject = function(object)
+{
+	//identify the object
+	for (let n in this.allObjects)
+	{
+		if (this.allObjects[n] == object)
+		{
+			this.allObjects.splice(n,1);
+			break;
+		}
+	}
+	//remove from the object's location in hash map
+	let x = Math.floor(object.pos.x/HASH_SIZE);
+	let y = Math.floor(object.pos.y/HASH_SIZE);
+	for (let n in this.map[x][y])
+	{
+		if (this.map[x][y][n] == object)
+		{
+			this.map[x][y].splice(n,1);
+			break;
+		}
+	}
+}
+//move an object, updating its hash map position if necessary
+GameMap.prototype.moveObject = function(object,newPos)
+{
+	//check if object needs to be moved on hash map
+	if (Math.floor(object.pos.x/HASH_SIZE) != Math.floor(newPos.x/HASH_SIZE) 
+	|| Math.floor(object.pos.y/HASH_SIZE) != Math.floor(newPos.y/HASH_SIZE))
+	{
+		//clear from old hash map position
+		let x = Math.floor(object.pos.x/HASH_SIZE);
+		let y = Math.floor(object.pos.y/HASH_SIZE);
+		for (let n in this.map[x][y])
+		{
+			if (this.map[x][y][n] == object)
+			{
+				this.map[x][y].splice(n,1);
+				break;
+			}
+		}
+		//add to new hash map position
+		x = Math.floor(newPos.x/HASH_SIZE);
+		y = Math.floor(newPos.y/HASH_SIZE);
+		this.map[x][y].push(object);
+	}
+	object.pos = newPos;
+}
 //range-checking
 GameMap.prototype.checkAllInRange = function(pos,range) 
 {
@@ -358,6 +407,28 @@ PortalNode.prototype.drawBody = function(viewport)
 	draw.lineTo(this.pos.x-viewport.x,this.pos.y-viewport.y-this.size*0.5);
 	draw.stroke();
 }
+//special node type: core, cannot be directly accessed
+CoreNode.prototype = new Node();
+CoreNode.prototype.constructor = CoreNode;
+function CoreNode(position)
+{	
+	Node.call(this,position,0);
+	this.size = CORE_SIZE;
+	this.nodeType = "core";
+}
+CoreNode.prototype.drawBody = function(viewport) //draw a large glowing thing
+{
+	draw.globalAlpha = 0.3;
+	draw.fillStyle = teams[this.team].color;
+	draw.beginPath();
+	draw.arc(this.pos.x-viewport.x,this.pos.y-viewport.y,this.size,0,2*Math.PI,false);
+	draw.fill();
+	//draw again for higher opacity in the center
+	draw.beginPath();
+	draw.arc(this.pos.x-viewport.x,this.pos.y-viewport.y,this.size/3,2*Math.PI,false);
+	draw.fill();
+	draw.globalAlpha = 1;
+}
 
 //an object for a moving group of units
 function MovingGroup(team,number,startNode,endNode) 
@@ -368,6 +439,7 @@ function MovingGroup(team,number,startNode,endNode)
 	this.startNode = startNode;
 	this.endNode = endNode;
 	this.pos = new Position(startNode.pos.x,startNode.pos.y);
+	this.lastEndPos = this.endNode.pos; //position that the endNode is at, will be out of date if endnode moves
 	this.direction = Position.getDirection(this.startNode.pos,this.endNode.pos);
 	this.remainingDistance = Position.getDistance(this.startNode.pos,this.endNode.pos);
 	this.lastMoveTime = new Date(); //time when the last move order was executed, should be at most 17 without any lag
@@ -395,13 +467,21 @@ MovingGroup.prototype.drawObject = function(viewport)
 //moves the group towards its destination
 MovingGroup.prototype.move = function() 
 {
+	//check if destination node has moved, if so update direction and distance
+	if (this.lastEndPos != this.endNode.pos)
+	{
+		this.direction = Position.getDirection(this.pos,this.endNode.pos);
+		this.remainingDistance = Position.getDistance(this.pos,this.endNode.pos);
+		this.lastEndPos = this.endNode.pos;
+	}
+	//move based on dt
 	let currentTime = new Date();
 	let distance = MOVE_SPEED*(currentTime-this.lastMoveTime)/1000
 	this.lastMoveTime = currentTime
 	this.pos.x += distance*Math.cos(this.direction);
 	this.pos.y += distance*Math.sin(this.direction);
 	this.remainingDistance -= distance;
-	//if close to the other node, add this group's units to that node
+	//if close to the end node, add this group's units to that node
 	if (this.remainingDistance <= this.endNode.size) 
 	{
 		//this.endNode.addUnits(this.team,this.number);
@@ -550,7 +630,7 @@ function drawMain()
 	{
 		let node = gameMap.allObjects[index];
 		//only draw if the object is near the viewport
-		if (node.pos.x >= vLeft && node.pos.y >= vTop && node.pos.x <= vRight && node.pos.y <= vBottom)
+		if (node.nodeType == "core" || (node.pos.x >= vLeft && node.pos.y >= vTop && node.pos.x <= vRight && node.pos.y <= vBottom))
 			node.drawObject(graphics);
 		else if (node.nodeType == "turret" && node.team != 0) //draw turret ranges if they aren't in view
 			node.drawRange(graphics);
@@ -738,12 +818,15 @@ Controller.prototype.removeOccupiedNode = function(node)
 //calculates unit capacity
 Controller.prototype.calculateUnitCapacity = function() 
 {
-	this.unitCapacity = 10*UNITS_PER_LEVEL; //start at base capacity
+	this.unitCapacity = REINFORCEMENT_CAP; //start at base capacity
 	for (let n in this.occupiedNodes) //add capacity for each owned node
 	{
 		let node = this.occupiedNodes[n];
-		if (this.getOwner(node) == 1 && node.nodeType == undefined)
-			this.unitCapacity += node.level*UNITS_PER_LEVEL;
+		if (this.getOwner(node) == 1)
+			if (node.nodeType == undefined || node.nodeType == "orbital")
+				this.unitCapacity += node.level*UNITS_PER_LEVEL;
+			else if (node.nodeType == "core")
+				this.unitCapacity += 200;
 	}
 	return this.unitCapacity;
 }
@@ -1040,7 +1123,8 @@ PlayerController.prototype.detectSelectedNode = function()
 	let potentialSelections = gameMap.checkAllInRange(this.mousePos,250);
 	for (let n in potentialSelections) 
 	{
-		if (Position.getDistance(this.mousePos,potentialSelections[n].pos) <= potentialSelections[n].size+40)
+		if (Position.getDistance(this.mousePos,potentialSelections[n].pos) <= potentialSelections[n].size+40 
+			&& potentialSelections[n].nodeType != "core")
 			return potentialSelections[n];
 	}
 	return undefined;
@@ -1094,13 +1178,16 @@ function updateGameMap(data)
 			switch (entry.nodeType)
 			{
 				case "factory":
-				tempNode = new FactoryNode(entry.pos)
+				tempNode = new FactoryNode(entry.pos);
 				break;
 				case "turret":
-				tempNode = new TurretNode(entry.pos)
+				tempNode = new TurretNode(entry.pos);
 				break;
 				case "portal":
-				tempNode = new PortalNode(entry.pos)
+				tempNode = new PortalNode(entry.pos);
+				break;
+				case "core":
+				tempNode = new CoreNode(entry.pos);
 				break;
 				default:
 				tempNode = new Node(entry.pos,entry.level);
@@ -1199,6 +1286,10 @@ function processPackets(data)
 			node.team = entry.team
 			teams[node.team].controller.addOccupiedNode(node)
 			break;
+			case "nodemove": //an orbital-type node is moving
+			gameMap.moveObject(node,entry.pos)
+			//node.pos = entry.pos
+			break;
 			case "move": //a moving group is being generated
 			let newGroup = new MovingGroup(entry.team,entry.number,node,getObjectById(entry.otherNode))
 			newGroup.id = entry.id
@@ -1250,6 +1341,11 @@ function processPackets(data)
 				graphics.addLaserEffect(startPos,endPos,teams[node.team].color)
 			}
 			break;
+			case "disconnectMessage": //update the disconnect message
+			document.getElementById("disconnectMessage").innerHTML=entry.message
+			break;
+			default: //unknown packet
+			console.log("Unknown packet type recieved " + entry.type);
 		}
 	}
 }
@@ -1273,9 +1369,12 @@ function completeSpawn(data)
 	//let spawnNode = getObjectById(data.spawnPoint.id)
 	//spawnNode.capturePoints = 0; spawnNode.captureTeam = 0; spawnNode.units = [];
 }
+//shows the disconnect screen to the user
 function handleDisconnect(data)
 {
-	document.getElementById("title").style.visibility = "visible";
-	document.getElementById("disconnected").style.display = "inline";
-	document.getElementById("howToPlay").style.visibility = "hidden";
+	//document.getElementById("title").style.visibility = "hidden";
+	document.getElementById("disconnected").style.visibility = "visible";
+	let message = document.getElementById("disconnectMessage");
+	if (message.innerHTML == "")
+		message.innerHTML = "You have disconnected from the server. Please reload and try again.";
 }

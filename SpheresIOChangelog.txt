@@ -1,17 +1,25 @@
 
 -Known Bugs/issues:
-*Rarely, nodes can become stuck as neutral
---Likely due to poor handling of change in captureTeam?
 *Random colors can be too identical to each other
 *Major errors regarding Firefox web browser
 
--TODO list: 
-*Add terrain shifting
-*Restart the server every so often
+-TODO list:
+
+Beta:
+
+0.1: First Beta Release
 
 Alpha:
 
-Next release:
+11/1/18:
+*Implemented the four cores, and orbital nodes around them.
+--Capture a core by controlling all of its orbitals, and control 3 out of the 4 cores to win.
+*Bot spawn rates significantly reduced, and bots will no longer run if no players are on the server
+--Also reduced the amount of cross-map portal plays by bots
+*Added a maximum players limit to the server
+*Various other bugfixes and improvements
+
+10/23/18:
 *Occasionally, bots will randomly be spawned into the game
 *Improved attrition mechanics for too many units on a node
 --Stacks greater than max units will now suffer constant attrition while on any non-special node

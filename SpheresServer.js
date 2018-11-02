@@ -2,23 +2,23 @@
 //spheres IO server code
 //global variables
 require("./consts.js")(global)
-var gameBoard; var graphics; var leaderBoard; //controller objects
+var gameController; var graphics; var leaderBoard; //controller objects
 //var canvas = document.getElementById("viewport"); //the canvas used for the main board
 //var draw = canvas.getContext("2d"); //the drawing context used for draw actions
 var gameMap = new GameMap(); //an array of all nodes
 var movingUnits = []; //an array of all MovingUnit groups
 var teams = {}; //a list of all teams
 var players = []; //lists the playerController for all non-bot players
+var cores = []; //all cores on the server
 //event listener
 //var player;
 //initialization block
 var initialize = function() 
 {
 	console.log("beginning game");
-	gameBoard = new GameController();
+	gameController = new GameController();
 	leaderBoard = new LeaderBoard();
 }
-
 ///logic system
 function GameController()
 {
@@ -33,7 +33,12 @@ function GameController()
 //generates a map
 GameController.prototype.generateMap = function(height,width) 
 {
-	//start with special nodes
+	//generate the cores
+	gameMap.addObject(new CoreNode(new Position(width/3,height/3)));
+	gameMap.addObject(new CoreNode(new Position(2*width/3,height/3)));
+	gameMap.addObject(new CoreNode(new Position(2*width/3,2*height/3)));
+	gameMap.addObject(new CoreNode(new Position(width/3,2*height/3)));
+	//generate the special nodes
 	let x = 0;
 	while (x < FACTORIES_TO_GENERATE)
 	{
@@ -138,13 +143,15 @@ GameController.prototype.spawnNewPlayer = function(controller,name)
 	return node;
 }
 //restarts the server
-GameController.prototype.restartGame = function()
+GameController.prototype.restartGame = function(winner)
 {
 	console.log("Restarting server")
 	//disconnect clients
+	let disconnectMessage = (winner == undefined) ? "Server Restarting" : winner.name + " Has won the game!";
 	for (let p in players)
 	{
-		players[p].client.disconnect()
+		players[p].sendPacket({type:"disconnectMessage",message:disconnectMessage});
+		players[p].client.disconnect();
 	}
 	//clear all data
 	clearInterval(this.gameLoop)
@@ -174,11 +181,11 @@ function gameTick()
 		if (node.nodeType == undefined && !node.attrition)
 			node.checkForAttrition();
 	}
-	//console.log(teams.length)
-	if (Math.random()*1000 <= 1) //spawn bots every so often
+	let numTeams = Object.keys(teams).length-1;
+	if (numTeams < MIN_PLAYERS && numTeams-players.length < BOT_COUNT && Math.random()*1000 <= 1) //spawn bots every so often
 	{
 		console.log("Spawning a new bot")
-		gameBoard.spawnNewPlayer(new BotController(teams.length),"Bot");
+		gameController.spawnNewPlayer(new BotController(teams.length),"Bot");
 	}
 }
 ///hash map code
@@ -203,6 +210,55 @@ GameMap.prototype.addObject = function(object)
 	let x = Math.floor(object.pos.x/HASH_SIZE);
 	let y = Math.floor(object.pos.y/HASH_SIZE);
 	this.map[x][y].push(object);
+}
+//removes an object from the grid
+GameMap.prototype.removeObject = function(object)
+{
+	//identify the object
+	for (let n in this.allObjects)
+	{
+		if (this.allObjects[n] == object)
+		{
+			this.allObjects.splice(n,1);
+			break;
+		}
+	}
+	//remove from the object's location in hash map
+	let x = Math.floor(object.pos.x/HASH_SIZE);
+	let y = Math.floor(object.pos.y/HASH_SIZE);
+	for (let n in this.map[x][y])
+	{
+		if (this.map[x][y][n] == object)
+		{
+			this.map[x][y].splice(n,1);
+			break;
+		}
+	}
+}
+//move an object, updating its hash map position if necessary
+GameMap.prototype.moveObject = function(object,newPos)
+{
+	//check if object needs to be moved on hash map
+	if (Math.floor(object.pos.x/HASH_SIZE) != Math.floor(newPos.x/HASH_SIZE) 
+	|| Math.floor(object.pos.y/HASH_SIZE) != Math.floor(newPos.y/HASH_SIZE))
+	{
+		//clear from old hash map position
+		let x = Math.floor(object.pos.x/HASH_SIZE);
+		let y = Math.floor(object.pos.y/HASH_SIZE);
+		for (let n in this.map[x][y])
+		{
+			if (this.map[x][y][n] == object)
+			{
+				this.map[x][y].splice(n,1);
+				break;
+			}
+		}
+		//add to new hash map position
+		x = Math.floor(newPos.x/HASH_SIZE);
+		y = Math.floor(newPos.y/HASH_SIZE);
+		this.map[x][y].push(object);
+	}
+	object.pos = newPos;
 }
 //range-checking
 GameMap.prototype.checkAllInRange = function(pos,range) 
@@ -423,7 +479,6 @@ Node.prototype.checkForAttrition = function()
 		}
 	}
 }
-
 //special node type: factory, high production unless fighting
 FactoryNode.prototype = new Node();
 FactoryNode.prototype.constructor = FactoryNode;
@@ -496,6 +551,78 @@ PortalNode.prototype.spawn = function()
 {
 	return;
 }
+//special node type: core, cannot be directly accessed
+CoreNode.prototype = new Node();
+CoreNode.prototype.constructor = CoreNode;
+function CoreNode(position)
+{
+	Node.call(this,position,0);
+	this.size = CORE_SIZE;
+	this.nodeType = "core";
+	//generate orbitals
+	this.orbitals = [];
+	for (let angle = 0; angle < 1.99*Math.PI; angle += Math.PI/3)
+	{
+		let tempNode = new OrbitalNode(this,angle);
+		tempNode.addUnits(0,100);
+		this.orbitals.push(tempNode);
+		gameMap.addObject(tempNode);
+	}
+	setInterval(function(_this){_this.rotateNodes();},100/CORE_ROTATION,this);
+	//register this with the game controller
+	cores.push(this);
+}
+//cores do not spawn (and also cannot accept units)
+CoreNode.prototype.spawn = function()
+{
+	return;
+}
+//rotates all orbitals and also checks to see if this should be captured
+CoreNode.prototype.rotateNodes = function()
+{
+	//rotate the orbitals
+	for (let n in this.orbitals)
+	{
+		this.orbitals[n].orbit(0.1*Math.PI/180);
+	}
+	//check to see if this node should be captured
+	let captureTeam = this.orbitals[0].team
+	if (captureTeam != 0 && captureTeam == this.orbitals[1].team && captureTeam == this.orbitals[2].team
+		&& captureTeam == this.orbitals[3].team && captureTeam == this.orbitals[4].team && captureTeam == this.orbitals[5].team)
+	{
+		if (this.team != captureTeam)
+		{
+			this.changeTeam(captureTeam);
+			//check victory conditions (must control at least 75% of the cores on the map to win)
+			let alignedCores = 0;
+			for (let n in cores)
+			{
+				if (cores[n].team == this.team)
+					alignedCores++;
+			}
+			if (alignedCores/cores.length >= 0.75)
+				gameController.restartGame(teams[this.team])
+		}
+	}
+	else if (this.team != 0)
+		this.changeTeam(0);
+}
+//special node type: orbital nodes around a core
+OrbitalNode.prototype = new Node();
+OrbitalNode.prototype.constructor = OrbitalNode;
+function OrbitalNode(core,angle)
+{
+	this.corePos = core.pos;
+	this.angle = angle;
+	Node.call(this,new Position(this.corePos.x+CORE_SIZE*Math.cos(angle),this.corePos.y+CORE_SIZE*Math.sin(angle)),5);
+	this.nodeType = "orbital";
+}
+OrbitalNode.prototype.orbit = function(added)
+{
+	this.angle += added;
+	gameMap.moveObject(this,new Position(this.corePos.x+CORE_SIZE*Math.cos(this.angle),this.corePos.y+CORE_SIZE*Math.sin(this.angle)))
+	addPacket({type:"nodemove",node:this.id,pos:this.pos});
+}
 
 //an object for a moving group of units
 function MovingGroup(team,number,startNode,endNode) 
@@ -506,6 +633,7 @@ function MovingGroup(team,number,startNode,endNode)
 	this.startNode = startNode;
 	this.endNode = endNode;
 	this.pos = new Position(startNode.pos.x,startNode.pos.y);
+	this.lastEndPos = this.endNode.pos; //position that the endNode is at, will be out of date if endnode moves
 	this.direction = Position.getDirection(this.startNode.pos,this.endNode.pos);	
 	this.remainingDistance = Position.getDistance(this.startNode.pos,this.endNode.pos);
 	this.lastMoveTime = new Date(); //time when the last move order was executed, should be at most 17 without any lag
@@ -521,14 +649,22 @@ MovingGroup.prototype.move = function()
 			this.number == 1
 		else
 			return "destroyed"
+	}	
+	//check if destination node has moved, if so update direction and distance
+	if (this.lastEndPos != this.endNode.pos)
+	{
+		this.direction = Position.getDirection(this.pos,this.endNode.pos);
+		this.remainingDistance = Position.getDistance(this.pos,this.endNode.pos);
+		this.lastEndPos = this.endNode.pos;
 	}
+	//move based on dt
 	let currentTime = new Date();
 	let distance = MOVE_SPEED*(currentTime-this.lastMoveTime)/1000
 	this.lastMoveTime = currentTime
 	this.pos.x += distance*Math.cos(this.direction);
 	this.pos.y += distance*Math.sin(this.direction);
 	this.remainingDistance -= distance;
-	//if close to the other node, add this group's units to that node
+	//if close to the end node, add this group's units to that node
 	if (this.remainingDistance <= this.endNode.size) 
 	{
 		this.endNode.addUnits(this.team,this.number);
@@ -722,12 +858,6 @@ Controller.prototype.addOccupiedNode = function(node)
 	if (!isDuplicate)
 	{
 		this.occupiedNodes.push(node);
-		//check for victory conditions
-		if (this.occupiedNodes.length >= gameMap.allObjects.length*0.75 && this.team != 0)
-		{
-			console.log("A team has won the game!")
-			gameBoard.restartGame()
-		}
 	}
 	this.calculateUnitCapacity(); //an addOccupiedNode call triggers on a team change, so always recalculate unit capacity
 }
@@ -761,8 +891,11 @@ Controller.prototype.calculateUnitCapacity = function()
 	for (let n in this.occupiedNodes) //add capacity for each owned node
 	{
 		let node = this.occupiedNodes[n];
-		if (this.getOwner(node) == 1 && node.nodeType == undefined)
-			this.unitCapacity += node.level*UNITS_PER_LEVEL;
+		if (this.getOwner(node) == 1)
+			if (node.nodeType == undefined || node.nodeType == "orbital")
+				this.unitCapacity += node.level*UNITS_PER_LEVEL;
+			else if (node.nodeType == "core")
+				this.unitCapacity += 200;
 	}
 	return this.unitCapacity;
 }
@@ -817,7 +950,7 @@ BotController.prototype.runAI = function()
 	//this.getData();
 	//assign values
 	//this.assignValues();
-	if (Math.random() <= this.reaction && this.occupiedNodes.length != 0) 
+	if (Math.random() <= this.reaction && this.occupiedNodes.length != 0 && players.length > 0) 
 	{
 		this.getData();
 		this.assignValues();
@@ -850,7 +983,7 @@ BotController.prototype.getData = function()
 	{
 		let originNode = this.occupiedNodes[n1]; let availableTargets;
 		if (originNode.nodeType == "portal" && originNode.team == this.team)
-			availableTargets = gameMap.allObjects;
+			availableTargets = gameMap.checkAllInRange(originNode.pos,MAX_RANGE*5);
 		else
 			availableTargets = gameMap.checkAllInRange(originNode.pos,MAX_RANGE);
 		for (let n2 in availableTargets) 
@@ -873,6 +1006,10 @@ BotController.prototype.assignValues = function()
 		let originUnits = 2*origin.getUnitsOfTeam(this.team)-origin.getTotalUnits(); //positive if friendlies outnumber enemies, negative otherwise
 		let targetUnits = 2*target.getUnitsOfTeam(this.team)-target.getTotalUnits(); //positive if friendles outnumber enemies, negative otherwise
 		//analyze the target
+		if (target.nodeType == "core") //cores cannot be selected
+		{
+			move.value = -9999;
+		}
 		if (targetOwner == 1) //target is allied
 		{
 			if (targetUnits <= -5 && originUnits*this.movePercentage > -targetUnits) //target ally is under attack
@@ -976,7 +1113,7 @@ PlayerController.prototype.sendPacket = function(packet)
 PlayerController.prototype.spawn = function(name)
 {
 	//this.team = teams.length;
-	let spawnPoint = gameBoard.spawnNewPlayer(this,name);
+	let spawnPoint = gameController.spawnNewPlayer(this,name);
 	this.client.emit("spawnsuccess",{team:this.team,spawnPoint:spawnPoint})
 }
 //transmit a move order
@@ -1028,7 +1165,14 @@ PlayerController.prototype.disconnect = function(data)
 			addPacket({type:"assault",node:node.id,points:node.capturePoints,team:node.captureTeam})
 		}
 	}
-	//delete players[this.team]
+	for (let n in players)
+	{
+		if (players[n] == this)
+		{
+			players.splice(n,1);
+			break;
+		}
+	}
 }
 
 ///ID generation
@@ -1082,6 +1226,14 @@ io.on('connection', function(client)
     // detect client ping
 	client.on('join', function(data) 
 	{
+		if (players.length > MAX_PLAYERS) //don't allow players to join past max capacity
+		{
+			console.log(players.length);
+			console.log("Server maximum capacity reached");
+			client.emit("data",[{type:"disconnectMessage",message:"The server is over capacity"}]);
+			client.disconnect();
+			return;
+		}
         //console.log(client);
 		//create a new player controller
 		players.push(new PlayerController(0,client))
