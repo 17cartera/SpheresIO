@@ -1377,4 +1377,6 @@ function handleDisconnect(data)
 	let message = document.getElementById("disconnectMessage");
 	if (message.innerHTML == "")
 		message.innerHTML = "You have disconnected from the server. Please reload and try again.";
+	//exit the process to force the player to refresh
+	process.exit()
 }

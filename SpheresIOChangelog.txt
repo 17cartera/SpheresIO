@@ -2,12 +2,17 @@
 -Known Bugs/issues:
 *Random colors can be too identical to each other
 *Major errors regarding Firefox web browser
+*Server restarting is not handled properly
+*Bots are spawning when they shouldn't be
 
 -TODO list:
 
 Beta:
 
-0.1: First Beta Release
+1.1 Hotfix (11/4/18):
+*Fixed bugs relating to server restarting
+
+0.1 (11/1/18): First Beta Release
 
 Alpha:
 

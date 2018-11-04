@@ -153,6 +153,9 @@ GameController.prototype.restartGame = function(winner)
 		players[p].sendPacket({type:"disconnectMessage",message:disconnectMessage});
 		players[p].client.disconnect();
 	}
+	//exits the server, foreverJS should immediately pick up and restart
+	process.exit()
+	/*
 	//clear all data
 	clearInterval(this.gameLoop)
 	gameMap = new GameMap()
@@ -161,6 +164,7 @@ GameController.prototype.restartGame = function(winner)
 	players = []
 	//reinitialize
 	initialize()
+	*/
 }
 //triggers secondary timers
 function gameTick()
@@ -181,7 +185,7 @@ function gameTick()
 		if (node.nodeType == undefined && !node.attrition)
 			node.checkForAttrition();
 	}
-	let numTeams = Object.keys(teams).length-1;
+	let numTeams = Object.keys(teams).length-1; //all teams other than the neutral team
 	if (numTeams < MIN_PLAYERS && numTeams-players.length < BOT_COUNT && Math.random()*1000 <= 1) //spawn bots every so often
 	{
 		console.log("Spawning a new bot")
