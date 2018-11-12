@@ -9,7 +9,11 @@
 
 Beta:
 
-1.1 Hotfix (11/4/18):
+0.2 (11/11/18):
+*Nodes will randomly despawn and respawn to vary the terrain on the server
+*Fixed a bug that could cause neutral nodes to spawn units under rare circumstances
+
+0.1 Hotfix (11/4/18):
 *Fixed bugs relating to server restarting
 
 0.1 (11/1/18): First Beta Release

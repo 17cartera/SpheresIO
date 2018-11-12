@@ -3,15 +3,11 @@
 //global variables
 require("./consts.js")(global)
 var gameController; var graphics; var leaderBoard; //controller objects
-//var canvas = document.getElementById("viewport"); //the canvas used for the main board
-//var draw = canvas.getContext("2d"); //the drawing context used for draw actions
 var gameMap = new GameMap(); //an array of all nodes
 var movingUnits = []; //an array of all MovingUnit groups
 var teams = {}; //a list of all teams
 var players = []; //lists the playerController for all non-bot players
 var cores = []; //all cores on the server
-//event listener
-//var player;
 //initialization block
 var initialize = function() 
 {
@@ -34,10 +30,12 @@ function GameController()
 GameController.prototype.generateMap = function(height,width) 
 {
 	//generate the cores
+	/*
 	gameMap.addObject(new CoreNode(new Position(width/3,height/3)));
 	gameMap.addObject(new CoreNode(new Position(2*width/3,height/3)));
 	gameMap.addObject(new CoreNode(new Position(2*width/3,2*height/3)));
 	gameMap.addObject(new CoreNode(new Position(width/3,2*height/3)));
+	*/
 	//generate the special nodes
 	let x = 0;
 	while (x < FACTORIES_TO_GENERATE)
@@ -90,14 +88,36 @@ GameController.prototype.placeNode = function(tempNode)
 	//push the node
 	if (isClear)
 	{
-		tempNode.addUnits(tempNode.team,10+Math.floor(Math.random()*40));
 		gameMap.addObject(tempNode);
+		tempNode.units[0] = new Units(0,10+Math.floor(Math.random()*40));
+		addPacket({type:"addNode",newNode:tempNode});
 		return true;
 	}
 	else
 	{
 		return false;
 	}
+}
+//attempts to destroy a node
+GameController.prototype.destroyNode = function(node)
+{
+	//revert the node to neutral and remove all units to purge its lingering data
+	for (let u in node.units)
+		node.addUnits(node.units[u].team,-node.units[u].number);
+	node.changeTeam(0);
+	//check moving groups and destroy those that lead to this target	
+	for (let n = movingUnits.length-1; n >= 0; n--) //kill moving units
+	{
+		let group = movingUnits[n]
+		if (group.endNode == node)
+		{
+			addPacket({type:"groupLoss",id:group.id,number:group.number}) //send deletion to client
+			movingUnits.splice(n,1) //delete the moving group
+		}
+	}
+	//execute deletion from main grid
+	addPacket({type:"removeNode",node:node.id});
+	gameMap.removeObject(node);
 }
 //spawns in a new player
 GameController.prototype.spawnNewPlayer = function(controller,name)
@@ -135,7 +155,8 @@ GameController.prototype.spawnNewPlayer = function(controller,name)
 		{
 			console.log("No neutral nodes, forced to overspawn player")
 			isValidLocationFound = true;
-			node.units = [];
+			for (let u in node.units)
+				node.addUnits(node.units[u].team,-node.units[u].number)
 			node.changeTeam(teamIndex);
 			node.addUnits(teamIndex,100);
 		}
@@ -155,16 +176,6 @@ GameController.prototype.restartGame = function(winner)
 	}
 	//exits the server, foreverJS should immediately pick up and restart
 	process.exit()
-	/*
-	//clear all data
-	clearInterval(this.gameLoop)
-	gameMap = new GameMap()
-	movingUnits = []
-	teams = {}
-	players = []
-	//reinitialize
-	initialize()
-	*/
 }
 //triggers secondary timers
 function gameTick()
@@ -185,11 +196,25 @@ function gameTick()
 		if (node.nodeType == undefined && !node.attrition)
 			node.checkForAttrition();
 	}
+	//spawn bots every so often if conditions are met
 	let numTeams = Object.keys(teams).length-1; //all teams other than the neutral team
-	if (numTeams < MIN_PLAYERS && numTeams-players.length < BOT_COUNT && Math.random()*1000 <= 1) //spawn bots every so often
+	if (numTeams < MIN_PLAYERS && numTeams-players.length < BOT_COUNT && Math.random()*1000 <= 1) 
 	{
 		console.log("Spawning a new bot")
 		gameController.spawnNewPlayer(new BotController(teams.length),"Bot");
+	}
+	//change up the map
+	if (Math.random()*100 <= 1)
+	{
+		//add a new node
+		while(!gameController.placeNode(new Node(new Position(Math.random()*MAP_SIZE,Math.random()*MAP_SIZE),
+		1+Math.floor(Math.random()*5)))){}
+		//remove a non-special node
+		let index = 0;
+		do
+			index = Math.floor(Math.random()*gameMap.allObjects.length)
+		while (gameMap.allObjects[index].nodeType != undefined)
+		gameController.destroyNode(gameMap.allObjects[index]);
 	}
 }
 ///hash map code
@@ -380,7 +405,7 @@ Node.prototype.spawn = function()
 	let unitCount = this.getUnitsOfTeam(this.team)
 	let delay = (SPAWN_TIME*1000)/this.level;
 	delay *= 1+Math.max(teams[this.team].controller.getTotalUnits()-REINFORCEMENT_CAP,0)/UNITS_PER_SPAWN_MULTIPLIER;
-	if (this.fighting) delay *= FIGHT_SPAWN_MULTIPLIER; //units take twice as long to spawn while in combat
+	if (this.fighting) delay *= FIGHT_SPAWN_MULTIPLIER; //units take twice as long to spawn while in combat?
 	//conditions: must not be dealing with attrition, must not be at capacity, must have friendly units or no units
 	if (!this.attrition && !teams[this.team].controller.isCapacityReached() && (unitCount != 0 || this.units.length == 0))
 	{
@@ -437,6 +462,7 @@ Node.prototype.fight = function()
 	//add the numbers of all teams to a total number
 	let unitNums = this.units;
 	var totalUnits = this.getTotalUnits()
+	if (totalUnits <= 0) return; //prevent a possible bug if all units leave the node at the exact same time
 	//choose a random unit out of all units to attack
 	var attackerLocation = Math.floor(Math.random()*totalUnits)+1;
 	var attackerFound = false;
@@ -891,6 +917,7 @@ Controller.prototype.removeOccupiedNode = function(node)
 //calculates unit capacity
 Controller.prototype.calculateUnitCapacity = function() 
 {
+	if (this.team == 0) return 0; //neutral team has no unit capacity
 	this.unitCapacity = REINFORCEMENT_CAP; //start at base capacity
 	for (let n in this.occupiedNodes) //add capacity for each owned node
 	{
@@ -1221,6 +1248,10 @@ app.get('/Spheres.js', function(req, res,next) {
 //server constants to client
 app.get('/consts.js', function(req, res,next) {  
     res.sendFile(__dirname + '/consts.js');
+});
+//send favicon to client
+app.get('/favicon.ico', function(req, res,next) {
+    res.sendFile(__dirname + '/favicon.ico');
 });
 
 //netcode?

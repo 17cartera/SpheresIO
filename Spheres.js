@@ -9,7 +9,6 @@ var unitValue = document.getElementById("unitValue") //value for unitSlider
 var gameMap = new GameMap(); //an array of all nodes
 var movingUnits = []; //an array of all MovingUnit groups
 var teams = {}; //a list of all teams
-//teams.push(new Team("rgb(128,128,128)",new Controller())); //neutral team
 var playerNameIndex = undefined; //the index of the player's team
 //event listener
 var player;
@@ -818,6 +817,7 @@ Controller.prototype.removeOccupiedNode = function(node)
 //calculates unit capacity
 Controller.prototype.calculateUnitCapacity = function() 
 {
+	if (this.team == 0) return 0; //neutral team has no unit capacity
 	this.unitCapacity = REINFORCEMENT_CAP; //start at base capacity
 	for (let n in this.occupiedNodes) //add capacity for each owned node
 	{
@@ -1173,48 +1173,18 @@ function updateGameMap(data)
 		}
 		if (duplicate == undefined) //adding new node
 		{
-			//console.log("New Node Detected")
-			let tempNode;// = new Node(entry.pos,entry.level);
-			switch (entry.nodeType)
-			{
-				case "factory":
-				tempNode = new FactoryNode(entry.pos);
-				break;
-				case "turret":
-				tempNode = new TurretNode(entry.pos);
-				break;
-				case "portal":
-				tempNode = new PortalNode(entry.pos);
-				break;
-				case "core":
-				tempNode = new CoreNode(entry.pos);
-				break;
-				default:
-				tempNode = new Node(entry.pos,entry.level);
-				break;
-			}
-			for (let u in entry.units)
-			{
-				let group = entry.units[u];
-				tempNode.addUnits(group.team,group.number)
-			}
-			tempNode.id = entry.id
-			tempNode.team = entry.team
-			teams[entry.team].controller.addOccupiedNode(tempNode)
-			tempNode.capturePoints = entry.capturePoints
-			tempNode.captureTeam = entry.captureTeam
-			gameMap.addObject(tempNode)
+			addNode(entry);
 		}
 		else //updating attributes of existing node
 		{
+			console.log("Duplicate entry detected");
+			/*
 			for (let u in entry.units) //update each unit group
 			{
-				/*
 				let newUnits = entry.units[u].number
 				let oldUnits = duplicate.getUnitsOfTeam(newUnits.team)
 				let difference = newUnits-oldUnits
 				duplicate.addUnits(newUnits.team,difference)
-				*/
 			}
 			for (let n in duplicate.units) //check for groups that have been eliminated
 			{
@@ -1233,9 +1203,44 @@ function updateGameMap(data)
 			duplicate.captureTeam = entry.captureTeam
 			//tempNode.selected = gameMap.allObjects[n].selected
 			//gameMap.allObjects[n] = tempNode
+			*/
 		}
 			
 	}
+}
+function addNode(entry)
+{
+	//console.log("New Node Detected")
+	let tempNode;// = new Node(entry.pos,entry.level);
+	switch (entry.nodeType)
+	{
+		case "factory":
+		tempNode = new FactoryNode(entry.pos);
+		break;
+		case "turret":
+		tempNode = new TurretNode(entry.pos);
+		break;
+		case "portal":
+		tempNode = new PortalNode(entry.pos);
+		break;
+		case "core":
+		tempNode = new CoreNode(entry.pos);
+		break;
+		default:
+		tempNode = new Node(entry.pos,entry.level);
+		break;
+	}
+	for (let u in entry.units)
+	{
+		let group = entry.units[u];
+		tempNode.addUnits(group.team,group.number)
+	}
+	tempNode.id = entry.id
+	tempNode.team = entry.team
+	teams[entry.team].controller.addOccupiedNode(tempNode)
+	tempNode.capturePoints = entry.capturePoints
+	tempNode.captureTeam = entry.captureTeam
+	gameMap.addObject(tempNode)
 }
 function updateMovingGroups(data)
 {
@@ -1269,7 +1274,7 @@ function processPackets(data)
 	for (let n in data)
 	{
 		let entry = data[n]			
-		let node = getObjectById(entry.node)
+		let node = getObjectById(entry.node) //most packet events will have this entry, undefined if it isn't present
 		switch (entry.type)
 		{
 			case "units": //units are added or removed from the node
@@ -1341,11 +1346,20 @@ function processPackets(data)
 				graphics.addLaserEffect(startPos,endPos,teams[node.team].color)
 			}
 			break;
+			case "addNode": //a new node has been generated
+			console.log("New node discovered");
+			addNode(entry.newNode);
+			break;
+			case "removeNode": //a node is being destroyed
+			console.log("Node being destroyed");
+			gameMap.removeObject(node);
+			break;
 			case "disconnectMessage": //update the disconnect message
 			document.getElementById("disconnectMessage").innerHTML=entry.message
 			break;
 			default: //unknown packet
 			console.log("Unknown packet type recieved " + entry.type);
+			break;
 		}
 	}
 }
