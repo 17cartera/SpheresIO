@@ -30,12 +30,10 @@ function GameController()
 GameController.prototype.generateMap = function(height,width) 
 {
 	//generate the cores
-	/*
 	gameMap.addObject(new CoreNode(new Position(width/3,height/3)));
 	gameMap.addObject(new CoreNode(new Position(2*width/3,height/3)));
 	gameMap.addObject(new CoreNode(new Position(2*width/3,2*height/3)));
 	gameMap.addObject(new CoreNode(new Position(width/3,2*height/3)));
-	*/
 	//generate the special nodes
 	let x = 0;
 	while (x < FACTORIES_TO_GENERATE)

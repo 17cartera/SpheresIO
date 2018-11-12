@@ -9,6 +9,9 @@
 
 Beta:
 
+0.2 Hotfix:
+*Cores should now spawn again
+
 0.2 (11/11/18):
 *Nodes will randomly despawn and respawn to vary the terrain on the server
 *Fixed a bug that could cause neutral nodes to spawn units under rare circumstances
