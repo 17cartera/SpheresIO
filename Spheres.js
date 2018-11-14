@@ -138,14 +138,12 @@ GameMap.prototype.moveObject = function(object,newPos)
 	object.pos = newPos;
 }
 //range-checking
-GameMap.prototype.checkAllInRange = function(pos,range) 
+GameMap.prototype.getAllInRange = function(pos,range) 
 {
 	let radius = Math.ceil(range/HASH_SIZE);
 	let x = Math.floor(pos.x/HASH_SIZE);
 	let y = Math.floor(pos.y/HASH_SIZE);
 	let output = [];
-	let checkedNodes = 0;
-	let validNodes = 0;
 	for (let dx = -radius; dx <= radius; dx++) 
 	{
 		if (x+dx >= 0 && x+dx < this.size)
@@ -153,16 +151,14 @@ GameMap.prototype.checkAllInRange = function(pos,range)
 		{
 			if (y+dy >= 0 && y+dy < this.size)
 			{
-			for (let obj in this.map[x+dx][y+dy])
-			{
-				let pos2 = this.map[x+dx][y+dy][obj];
-				checkedNodes++;
-				if (Position.getDistance(pos,pos2.pos) <= range)
+				for (let obj in this.map[x+dx][y+dy])
 				{
-					validNodes++;
-					output.push(pos2);
+					let pos2 = this.map[x+dx][y+dy][obj];
+					if (Position.getDistance(pos,pos2.pos) <= range)
+					{
+						output.push(pos2);
+					}
 				}
-			}
 			}
 		}
 	}
@@ -1120,7 +1116,7 @@ PlayerController.prototype.changeUnitPercentage = function()
 //detects the node the player is clicking on
 PlayerController.prototype.detectSelectedNode = function()
 {
-	let potentialSelections = gameMap.checkAllInRange(this.mousePos,250);
+	let potentialSelections = gameMap.getAllInRange(this.mousePos,250);
 	for (let n in potentialSelections) 
 	{
 		if (Position.getDistance(this.mousePos,potentialSelections[n].pos) <= potentialSelections[n].size+40 

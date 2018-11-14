@@ -9,6 +9,10 @@
 
 Beta:
 
+0.2.1 (11/14/18):
+*Fixed a bug that could cause a server crash
+*Optimized attrition calculations
+
 0.2 Hotfix:
 *Cores should now spawn again
 

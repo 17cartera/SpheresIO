@@ -77,7 +77,7 @@ GameController.prototype.generateMap = function(height,width)
 GameController.prototype.placeNode = function(tempNode)
 {
 	let isClear = true;
-	let potentialObstructions = gameMap.checkAllInRange(tempNode.pos,250);
+	let potentialObstructions = gameMap.getAllInRange(tempNode.pos,250);
 	for (let n in potentialObstructions) 
 	{
 		if (Position.getDistance(tempNode.pos,potentialObstructions[n].pos) <= (tempNode.size+potentialObstructions[n].size)*2+30)
@@ -288,14 +288,12 @@ GameMap.prototype.moveObject = function(object,newPos)
 	object.pos = newPos;
 }
 //range-checking
-GameMap.prototype.checkAllInRange = function(pos,range) 
+GameMap.prototype.getAllInRange = function(pos,range) 
 {
 	let radius = Math.ceil(range/HASH_SIZE);
 	let x = Math.floor(pos.x/HASH_SIZE);
 	let y = Math.floor(pos.y/HASH_SIZE);
 	let output = [];
-	let checkedNodes = 0;
-	let validNodes = 0;
 	for (let dx = -radius; dx <= radius; dx++) 
 	{
 		if (x+dx >= 0 && x+dx < this.size)
@@ -303,20 +301,48 @@ GameMap.prototype.checkAllInRange = function(pos,range)
 		{
 			if (y+dy >= 0 && y+dy < this.size)
 			{
-			for (let obj in this.map[x+dx][y+dy])
-			{
-				let pos2 = this.map[x+dx][y+dy][obj];
-				checkedNodes++;
-				if (Position.getDistance(pos,pos2.pos) <= range)
+				for (let obj in this.map[x+dx][y+dy])
 				{
-					validNodes++;
-					output.push(pos2);
+					let pos2 = this.map[x+dx][y+dy][obj];
+					if (Position.getDistance(pos,pos2.pos) <= range)
+					{
+						output.push(pos2);
+					}
 				}
-			}
 			}
 		}
 	}
 	return output;
+}
+//find the nearest node (optimized getAllInRange)
+GameMap.prototype.getNearestNode = function(pos,max)
+{
+	let radius = Math.ceil(range/HASH_SIZE);
+	let x = Math.floor(pos.x/HASH_SIZE);
+	let y = Math.floor(pos.y/HASH_SIZE);
+	let result = undefined;
+	let resultDistance = max
+	for (let dx = -radius; dx <= radius; dx++) 
+	{
+		if (x+dx >= 0 && x+dx < this.size)
+		for (let dy = -radius; dy <= radius; dy++)
+		{
+			if (y+dy >= 0 && y+dy < this.size)
+			{
+				for (let obj in this.map[x+dx][y+dy])
+				{
+					let pos2 = this.map[x+dx][y+dy][obj];
+					let dist = Position.getDistance(pos,pos2.pos) 
+					if (dist <= resultDistance)
+					{
+						result = pos2;
+						resultDistance = dist;
+					}
+				}
+			}
+		}
+	}
+	return result;
 }
 
 //class for nodes
@@ -666,6 +692,7 @@ function MovingGroup(team,number,startNode,endNode)
 	this.remainingDistance = Position.getDistance(this.startNode.pos,this.endNode.pos);
 	this.lastMoveTime = new Date(); //time when the last move order was executed, should be at most 17 without any lag
 	this.attritLosses = 0; //fractional component of losses to attrition
+	this.nearestFriendlyDistance = CONTROL_RANGE; //minimum distance that can be crossed before another attrition check is needed
 }
 //moves the group towards its destination
 MovingGroup.prototype.move = function() 
@@ -704,6 +731,7 @@ MovingGroup.prototype.move = function()
 				movingUnits.splice(n,1);
 		}
 	}
+	//otherwise, check for attrition
 	else 
 	{
 		this.checkForAttrition(distance)
@@ -712,16 +740,32 @@ MovingGroup.prototype.move = function()
 //checks for attrition
 MovingGroup.prototype.checkForAttrition = function(distance)
 {
-	if (teams[this.team] == undefined)
-	{console.log("Invalid Moving Group Team"); console.log(this.number); return;}
-	let friendlyNodes = teams[this.team].controller.occupiedNodes
-	let nearFriendly = false;
-	for (let n in friendlyNodes)
+	if (teams[this.team] == undefined) //if the team is invalid, destroy this moving group
 	{
-		let node = friendlyNodes[n]
-		if (this.team == node.team && Position.getDistance(this.pos,node.pos) < CONTROL_RANGE)
+		console.log("Invalid Moving Group Team");
+		addPacket({type:"groupLoss",id:this.id,number:this.number})
+		this.number = 0;
+		return;
+	}
+	let nearFriendly = false;
+	if (this.nearestFriendlyDistance > distance) //if nearestfriendlydistance > 0, cannot need an attrition check
+	{
+		this.nearestFriendlyDistance -= distance
+		nearFriendly = true;
+	}
+	else //check all nodes in control range to see if one is friendly
+	{
+		let nearbyNodes = gameMap.getAllInRange(this.pos,CONTROL_RANGE)
+		for (let n in nearbyNodes)
 		{
-			nearFriendly = true;
+			let node = nearbyNodes[n]
+			if (this.team == node.team)
+			{
+				nearFriendly = true;
+				//set distance before another check
+				this.nearestFriendlyDistance = Math.max(this.nearestFriendlyDistance,CONTROL_RANGE-Position.getDistance(this.pos,node.pos))
+				break;
+			}
 		}
 	}
 	let atritNumber = this.number
@@ -1012,9 +1056,9 @@ BotController.prototype.getData = function()
 	{
 		let originNode = this.occupiedNodes[n1]; let availableTargets;
 		if (originNode.nodeType == "portal" && originNode.team == this.team)
-			availableTargets = gameMap.checkAllInRange(originNode.pos,MAX_RANGE*5);
+			availableTargets = gameMap.getAllInRange(originNode.pos,MAX_RANGE*5);
 		else
-			availableTargets = gameMap.checkAllInRange(originNode.pos,MAX_RANGE);
+			availableTargets = gameMap.getAllInRange(originNode.pos,MAX_RANGE);
 		for (let n2 in availableTargets) 
 		{
 			let targetNode = availableTargets[n2];

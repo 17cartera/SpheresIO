@@ -24,7 +24,7 @@ function exportConsts(scope)
     scope.CORE_SIZE = 200; //size of cores
     scope.fontSize = 16; //base font size  
     /*testing config
-    scope.BOT_COUNT = 1; //maximum amount of AI teams present
+    scope.BOT_COUNT = 0; //maximum amount of AI teams present
     scope.MIN_PLAYERS = 2; //minimum amount of total players before no more AI teams should be spawned
     scope.MAX_PLAYERS = 4; //maximum amount of players the server can support
     scope.MAP_SIZE = 1000;
@@ -33,6 +33,7 @@ function exportConsts(scope)
     scope.FACTORIES_TO_GENERATE = 1; //amount of factories to place on the map
     scope.PORTALS_TO_GENERATE = 1; //amount of portals to place on the map
     scope.TURRETS_TO_GENERATE = 1; //amount of turrets to place on the map
+    scope.SKIP_CORES = true; //skip core generation
     /**/
     /*small map
     scope.BOT_COUNT = 5; //maximum amount of AI teams present
