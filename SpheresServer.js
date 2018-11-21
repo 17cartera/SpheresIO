@@ -170,7 +170,7 @@ GameController.prototype.restartGame = function(winner)
 	for (let p in players)
 	{
 		players[p].sendPacket({type:"disconnectMessage",message:disconnectMessage});
-		players[p].client.disconnect();
+		setTimeout(function(_player){_player.disconnect();},1000,players[p].client);
 	}
 	//exits the server, foreverJS should immediately pick up and restart
 	process.exit()
@@ -692,7 +692,7 @@ function MovingGroup(team,number,startNode,endNode)
 	this.remainingDistance = Position.getDistance(this.startNode.pos,this.endNode.pos);
 	this.lastMoveTime = new Date(); //time when the last move order was executed, should be at most 17 without any lag
 	this.attritLosses = 0; //fractional component of losses to attrition
-	this.nearestFriendlyDistance = CONTROL_RANGE; //minimum distance that can be crossed before another attrition check is needed
+	this.nextCheckDistance = (startNode.team == team) ? CONTROL_RANGE : CONTROL_RANGE/10; //minimum distance that can be crossed before another attrition check is needed
 }
 //moves the group towards its destination
 MovingGroup.prototype.move = function() 
@@ -700,7 +700,7 @@ MovingGroup.prototype.move = function()
 	//if there are 0 units on this node, destroy it
 	if (this.number <= 0)
 	{
-		if (teams[this.team].controller.getTotalUnits() <= 0) //a team cannot lose their last unit to group losses (errors)
+		if (!teams[this.team] && teams[this.team].controller.getTotalUnits() <= 0) //a team cannot lose their last unit as a moving group
 			this.number == 1
 		else
 			return "destroyed"
@@ -748,9 +748,9 @@ MovingGroup.prototype.checkForAttrition = function(distance)
 		return;
 	}
 	let nearFriendly = false;
-	if (this.nearestFriendlyDistance > distance) //if nearestfriendlydistance > 0, cannot need an attrition check
+	if (this.nextCheckDistance > distance) //if nearestfriendlydistance > 0, cannot need an attrition check
 	{
-		this.nearestFriendlyDistance -= distance
+		this.nextCheckDistance -= distance
 		nearFriendly = true;
 	}
 	else //check all nodes in control range to see if one is friendly
@@ -763,7 +763,7 @@ MovingGroup.prototype.checkForAttrition = function(distance)
 			{
 				nearFriendly = true;
 				//set distance before another check
-				this.nearestFriendlyDistance = Math.max(this.nearestFriendlyDistance,CONTROL_RANGE-Position.getDistance(this.pos,node.pos))
+				this.nextCheckDistance = Math.max(this.nearestFriendlyDistance,CONTROL_RANGE-Position.getDistance(this.pos,node.pos))
 				break;
 			}
 		}

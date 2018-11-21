@@ -9,6 +9,13 @@
 
 Beta:
 
+Next update:
+*Fixed a bug in the optimized attrition calculation
+*Fixed a bug that could cause a client crash when a team is eliminated
+*Fixed a bug that could result in a server crash
+*Fixed a bug that prevented the correct message from appearing when the server restarts
+*Added more information to the tutorial
+
 0.2.1 (11/14/18):
 *Fixed a bug that could cause a server crash
 *Optimized attrition calculations

@@ -213,6 +213,7 @@ Node.prototype.drawObject = function(viewport)
 	{
 		let group = this.units[index];
 		group.updateUnitMap();
+		if (teams[group.team] == undefined) {console.log("Invalid Units Team");continue;}//error handling for missing team
 		draw.fillStyle = teams[group.team].color;
 		for (let index = 0; index < group.unitMap.length; index += 1) 
 		{
