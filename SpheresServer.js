@@ -771,7 +771,7 @@ MovingGroup.prototype.checkForAttrition = function(distance)
 	let atritNumber = this.number
 	if (nearFriendly)
 	{
-		atritNumber -= MAX_UNITS
+		atritNumber = (atritNumber-MAX_UNITS)/2
 	}
 	if (atritNumber > 0) //trigger attrition
 	{
@@ -892,8 +892,39 @@ function Team(color,controller,name)
 function Controller(team) 
 {
 	this.occupiedNodes = []; //list of all nodes with this team's units on them, or that are owned by this team
+	this.moveOrders = []; //list of all move orders that are queued up
 	this.team = team; //ID of this controller's team
 	this.unitCapacity = 0; //this team's unit capacity
+}
+//adds a move order to this controller's queue
+Controller.prototype.addMoveOrder = function(startNode,endNode,unitsTransferred)
+{
+	//check to see if this move order is already present
+	for (let n in this.moveOrders)
+	{
+		let move = this.moveOrders[n];
+		if (startNode == move.startNode && endNode == move.endNode)
+		{
+			move.unitsTransferred += unitsTransferred
+			return;
+		}
+	}
+	this.moveOrders.push({startNode:startNode,endNode:endNode,unitsTransferred:unitsTransferred,time:new Date()});
+	setTimeout(function(_this){_this.checkMoves()},MOVE_DELAY+1,this);
+}
+//checks all move orders and executes any that are ready
+Controller.prototype.checkMoves = function()
+{
+	let time = new Date()
+	for (let index = this.moveOrders.length-1; index >= 0; index--)
+	{
+		let move = this.moveOrders[index];
+		if (time - move.time > MOVE_DELAY)
+		{
+			this.moveUnits(move.startNode,move.endNode,move.unitsTransferred);
+			this.moveOrders.splice(index,1);
+		}
+	}
 }
 //creates a moving group between the target node and the other node
 Controller.prototype.moveUnits = function(startNode,endNode,unitsTransferred)
@@ -1042,7 +1073,7 @@ BotController.prototype.runAI = function()
 		}
 		//make the chosen move
 		if (chosenMove != null)
-			this.moveUnits(chosenMove.origin,chosenMove.target,Math.floor(chosenMove.origin.getUnitsOfTeam(this.team)*this.movePercentage));
+			this.addMoveOrder(chosenMove.origin,chosenMove.target,Math.floor(chosenMove.origin.getUnitsOfTeam(this.team)*this.movePercentage));
 		//occasionally change the move percentage
 		if (Math.random() < 0.1)
 			this.movePercentage = 0.3+Math.random()*0.6;
@@ -1202,7 +1233,7 @@ PlayerController.prototype.move = function(data)
 		return;
 	}
 	//transmit the move order
-	this.moveUnits(startNode,endNode,data.unitsTransferred)
+	this.addMoveOrder(startNode,endNode,data.unitsTransferred)
 }
 //handle player disconnect
 PlayerController.prototype.disconnect = function(data)
@@ -1283,6 +1314,11 @@ app.use(express.static(__dirname + '/node_modules'));
 app.get('/', function(req, res,next) {  
     res.sendFile(__dirname + '/index.html');
 });
+//serve requested files to the client
+app.get('/:filename', function(req , res){
+	res.sendFile(__dirname+"/"+req.params.filename);
+});
+/*
 //serve client script to client
 app.get('/Spheres.js', function(req, res,next) {  
     res.sendFile(__dirname + '/Spheres.js');
@@ -1295,7 +1331,7 @@ app.get('/consts.js', function(req, res,next) {
 app.get('/favicon.ico', function(req, res,next) {
     res.sendFile(__dirname + '/favicon.ico');
 });
-
+*/
 //netcode?
 io.on('connection', function(client) 
 {  
