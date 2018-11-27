@@ -1,5 +1,11 @@
 //changelogs since the initial conception of the game that are too old to go in the main changelog list
 
+-Known Bugs/issues:
+*Random colors can be too identical to each other
+*Major errors regarding Firefox web browser
+*Server restarting is not handled properly
+*Bots are spawning when they shouldn't be
+
 Alpha:
 
 11/1/18:
