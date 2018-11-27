@@ -9,7 +9,7 @@
 
 Beta:
 
-Next Release:
+0.3 (11/26/18):
 *Changed fonts
 *Balance changes
 --Nerfed attrition
