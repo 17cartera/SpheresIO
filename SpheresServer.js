@@ -897,7 +897,7 @@ function Controller(team)
 	this.unitCapacity = 0; //this team's unit capacity
 }
 //adds a move order to this controller's queue
-Controller.prototype.addMoveOrder = function(startNode,endNode,unitsTransferred)
+Controller.prototype.addMoveOrder = function(startNode,endNode,unitsTransferred,time)
 {
 	//check to see if this move order is already present
 	for (let n in this.moveOrders)
@@ -909,8 +909,15 @@ Controller.prototype.addMoveOrder = function(startNode,endNode,unitsTransferred)
 			return;
 		}
 	}
-	this.moveOrders.push({startNode:startNode,endNode:endNode,unitsTransferred:unitsTransferred,time:new Date()});
-	setTimeout(function(_this){_this.checkMoves()},MOVE_DELAY+1,this);
+	time = (time == undefined) ? new Date() : new Date(time); //if a timestamp has been provided use that instead
+	this.moveOrders.push({startNode:startNode,endNode:endNode,unitsTransferred:unitsTransferred,time:time});
+	let delay = Math.max(MOVE_DELAY+1-(new Date()-time),100)
+	setTimeout(function(_this){_this.checkMoves()},delay,this);
+	/*
+	setTimeout(function(_this,startNode,endNode,unitsTransferred)
+	{_this.moveUnits(startNode,endNode,unitsTransferred)}
+	,delay,startNode,endNode,unitsTransferred)
+	*/
 }
 //checks all move orders and executes any that are ready
 Controller.prototype.checkMoves = function()
@@ -919,7 +926,7 @@ Controller.prototype.checkMoves = function()
 	for (let index = this.moveOrders.length-1; index >= 0; index--)
 	{
 		let move = this.moveOrders[index];
-		if (time - move.time > MOVE_DELAY)
+		if (time - move.time >= MOVE_DELAY)
 		{
 			this.moveUnits(move.startNode,move.endNode,move.unitsTransferred);
 			this.moveOrders.splice(index,1);
@@ -1216,9 +1223,18 @@ PlayerController.prototype.sendPacket = function(packet)
 //initiate the spawning process
 PlayerController.prototype.spawn = function(name)
 {
-	//this.team = teams.length;
+	if (this.team != 0) //don't spawn a new player if we have already spawned in
+	{
+		console.log("Haxxor attempting to spawn in multiple times!");
+		return;
+	}
+	if (name.length > 20) //cap names at 20 chars
+	{
+		console.log("Someone's made a really long name!");
+		name = name.substring(0,20);
+	}
 	let spawnPoint = gameController.spawnNewPlayer(this,name);
-	this.client.emit("spawnsuccess",{team:this.team,spawnPoint:spawnPoint})
+	this.client.emit("spawnsuccess",{team:this.team,spawnPoint:spawnPoint});
 }
 //transmit a move order
 PlayerController.prototype.move = function(data)
@@ -1233,7 +1249,7 @@ PlayerController.prototype.move = function(data)
 		return;
 	}
 	//transmit the move order
-	this.addMoveOrder(startNode,endNode,data.unitsTransferred)
+	this.addMoveOrder(startNode,endNode,data.unitsTransferred,data.time)
 }
 //handle player disconnect
 PlayerController.prototype.disconnect = function(data)

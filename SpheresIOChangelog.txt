@@ -1,5 +1,15 @@
 Beta:
 
+Next Update
+*Optimimized rotation mechanics (not done yet)
+*Probably optimized other stuff
+
+0.3.1 (11/29/18):
+*Player names are preserved between sessions
+*Fixed a bug that could result in moves not registering, and added lag compensation
+*Fixed several security exploits
+*Increased map size (temporary change)
+
 0.3 (11/26/18):
 *Changed fonts
 *Balance changes

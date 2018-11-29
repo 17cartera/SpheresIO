@@ -47,7 +47,7 @@ function exportConsts(scope)
     scope.PORTALS_TO_GENERATE = 1; //amount of portals to place on the map
     scope.TURRETS_TO_GENERATE = 3; //amount of turrets to place on the map
     /**/
-    /*large map*/
+    /*large map
     scope.BOT_COUNT = 5; //maximum amount of AI teams present
     scope.MIN_PLAYERS = 10; //minimum amount of total players before no more AI teams should be spawned
     scope.MAX_PLAYERS = 40; //maximum amount of players the server can support
@@ -58,7 +58,7 @@ function exportConsts(scope)
     scope.PORTALS_TO_GENERATE = 4; //amount of portals to place on the map
     scope.TURRETS_TO_GENERATE = 10; //amount of turrets to place on the map
     /**/
-    /*massive map
+    /*massive map*/
     scope.BOT_COUNT = 10; //maximum amount of AI teams present
     scope.MIN_PLAYERS = 25; //minimum amount of total players before no more AI teams should be spawned
     scope.MAX_PLAYERS = 100; //maximum amount of players the server can support

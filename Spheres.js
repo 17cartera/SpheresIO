@@ -14,6 +14,9 @@ var playerNameIndex = undefined; //the index of the player's team
 var player;
 //server connection
 var socket;
+//if there is a cached name put in in the namebox
+document.getElementById("nameBox").value = getCookie("username");
+
 //initialization block
 var initialize = function() 
 {
@@ -884,11 +887,18 @@ function PlayerController(team)
 	unitSlider.oninput = function(e) {self.changeUnitPercentage();};
 }
 //spawns in the player
-PlayerController.prototype.spawn = function(e) 
+PlayerController.prototype.spawn = function() 
 {
 	//pushes out a new color for the player
 	this.team = teams.length;
-	sendSpawnPlayer(document.getElementById("nameBox").value)
+	let name = document.getElementById("nameBox").value
+	sendSpawnPlayer(name)
+	//save name in a cookie
+	var d = new Date();
+    d.setTime(d.getTime() + (7*24*60*60*1000)); //gets current time and adds 1 week
+    var expires = "expires="+ d.toUTCString();
+    document.cookie = "username=" + name + ";" + expires + ";path=/";
+	//document.cookie=name;
 }
 //adds a selected node, avoiding duplicates
 PlayerController.prototype.addSelectedNode = function(node) 
@@ -1071,7 +1081,7 @@ PlayerController.prototype.getMouseUp = function(e)
 				{
 					//console.log("Moving Units")
 					this.lastMoved.push(otherNode)
-					socket.emit("move",{startNode:otherNode.id,endNode:node.id,unitsTransferred:unitsTransferred})
+					socket.emit("move",{startNode:otherNode.id,endNode:node.id,unitsTransferred:unitsTransferred,time:new Date()})
 				}
 			}
 			//initialize double click detection
@@ -1390,4 +1400,21 @@ function handleDisconnect(data)
 		message.innerHTML = "You have disconnected from the server. Please reload and try again.";
 	//exit the process to force the player to refresh
 	process.exit()
+}
+
+//cookie handler
+function getCookie(cname) {
+    var name = cname + "=";
+    var decodedCookie = decodeURIComponent(document.cookie);
+    var ca = decodedCookie.split(';');
+    for(var i = 0; i <ca.length; i++) {
+        var c = ca[i];
+        while (c.charAt(0) == ' ') {
+            c = c.substring(1);
+        }
+        if (c.indexOf(name) == 0) {
+            return c.substring(name.length, c.length);
+        }
+    }
+    return "";
 }
