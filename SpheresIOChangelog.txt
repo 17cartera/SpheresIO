@@ -1,8 +1,22 @@
 Beta:
 
-Next Update
-*Optimimized rotation mechanics (not done yet)
-*Probably optimized other stuff
+Future Updates:
+*Optimimize rotation mechanics
+*Probably optimize other stuff
+*Fix double-click mechanics
+
+0.4(11/29/18)
+*Improved the animation for moving unit groups
+*Balance Changes:
+--Overall combat speed reduced slightly
+--Combat speed is now decided by the smaller group in large fights (> 100 units each side)
+--Portals now have a cooldown of 1 second per 10 units sent
+--Teleporting more than 100 units through a portal will cause some attrition as a result
+--A turret that has units fighting on it or that is being captured fires 50% less shots
+*Fixed a bug where the server did not properly restart
+*Fixed a bug that could cause the server to spawn more bots than usual
+*Returned map size to normal
+*Added a link to more .io games
 
 0.3.1 (11/29/18):
 *Player names are preserved between sessions

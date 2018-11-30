@@ -6,7 +6,8 @@ var gameController; var graphics; var leaderBoard; //controller objects
 var gameMap = new GameMap(); //an array of all nodes
 var movingUnits = []; //an array of all MovingUnit groups
 var teams = {}; //a list of all teams
-var players = []; //lists the playerController for all non-bot players
+var clients = []; //all playerControllers that are recieving game data (players and spectators)
+var players = []; //all players that are actively spawned into the game
 var cores = []; //all cores on the server
 //initialization block
 var initialize = function() 
@@ -30,10 +31,10 @@ function GameController()
 GameController.prototype.generateMap = function(height,width) 
 {
 	//generate the cores
-	gameMap.addObject(new CoreNode(new Position(width/3,height/3)));
-	gameMap.addObject(new CoreNode(new Position(2*width/3,height/3)));
-	gameMap.addObject(new CoreNode(new Position(2*width/3,2*height/3)));
-	gameMap.addObject(new CoreNode(new Position(width/3,2*height/3)));
+	//gameMap.addObject(new CoreNode(new Position(width/3,height/3)));
+	//gameMap.addObject(new CoreNode(new Position(2*width/3,height/3)));
+	//gameMap.addObject(new CoreNode(new Position(2*width/3,2*height/3)));
+	//gameMap.addObject(new CoreNode(new Position(width/3,2*height/3)));
 	//generate the special nodes
 	let x = 0;
 	while (x < FACTORIES_TO_GENERATE)
@@ -167,13 +168,12 @@ GameController.prototype.restartGame = function(winner)
 	console.log("Restarting server")
 	//disconnect clients
 	let disconnectMessage = (winner == undefined) ? "Server Restarting" : winner.name + " Has won the game!";
-	for (let p in players)
+	for (let p in clients)
 	{
-		players[p].sendPacket({type:"disconnectMessage",message:disconnectMessage});
-		setTimeout(function(_player){_player.disconnect();},1000,players[p].client);
+		clients[p].sendPacket({type:"disconnectMessage",message:disconnectMessage});
 	}
 	//exits the server, foreverJS should immediately pick up and restart
-	process.exit()
+	setTimeout(function(){process.exit()},1000);
 }
 //triggers secondary timers
 function gameTick()
@@ -507,7 +507,12 @@ Node.prototype.fight = function()
 	//continue fighting if a fight is still needed 
 	if (unitNums.length > 1)
 	{
-		let delay = Math.min((FIGHT_TIME*10000)/(Math.min(totalUnits,MAX_UNITS)),FIGHT_TIME*1000);
+		//find the strongest group on this node
+		let strongestNum = 0;
+		for (let n in this.units)
+			strongestNum = Math.max(strongestNum,unitNums[n].number)
+		let delay = Math.min((FIGHT_TIME*10000)/(Math.min(totalUnits,Math.max(MAX_UNITS,2*(totalUnits-strongestNum))))
+			,FIGHT_TIME*1000);
 		setTimeout(function(_this){_this.fight();},delay,this);
 		this.fighting = true;
 	}
@@ -575,6 +580,7 @@ TurretNode.prototype.spawn = function()
 TurretNode.prototype.checkLaser = function()
 {
 	if (this.team == 0) return; //do not activate if neutral
+	if ((this.fighting || this.capturing) && Math.random() < 0.5) return; //50% of all shots fail while the turret is in combat
 	let closestGroup,closestRange = TURRET_RANGE;
 	for (let u in movingUnits) //check to see if an enemy group is within turret range
 	{
@@ -599,11 +605,24 @@ function PortalNode(position)
 {
 	Node.call(this,position,5);
 	this.nodeType = "portal";
+	this.ready = true;
 }
 //portals do not spawn
 PortalNode.prototype.spawn = function()
 {
 	return;
+}
+//function to allow the portal node to teleport units
+PortalNode.prototype.teleport = function(endNode,unitsTransferred)
+{
+	this.addUnits(this.team,-unitsTransferred);
+	if (unitsTransferred > MAX_UNITS)
+		unitsTransferred -= Math.floor((unitsTransferred-MAX_UNITS)*PORTAL_ATTRITION)
+	endNode.addUnits(this.team,unitsTransferred);
+	addPacket({type:"teleport",number:unitsTransferred,node:this.id,otherNode:endNode.id})
+	//put the portal in cooldown
+	this.ready = false;
+	setTimeout(function(_this){_this.ready = true},unitsTransferred*PORTAL_DELAY,this);
 }
 //special node type: core, cannot be directly accessed
 CoreNode.prototype = new Node();
@@ -873,9 +892,9 @@ LeaderBoard.prototype.getLeaders = function()
 			continue;
 		leaderData.push({color:team.color,name:team.name,score:team.controller.unitCapacity})
 	}
-	for (let p in players)
+	for (let p in clients)
 	{
-		players[p].client.emit("leaderboard",leaderData)
+		clients[p].client.emit("leaderboard",leaderData)
 	}
 	setTimeout(function(_this){_this.getLeaders();},1000,this); //automatically recalculate leaders every 5 seconds
 }
@@ -912,6 +931,7 @@ Controller.prototype.addMoveOrder = function(startNode,endNode,unitsTransferred,
 	time = (time == undefined) ? new Date() : new Date(time); //if a timestamp has been provided use that instead
 	this.moveOrders.push({startNode:startNode,endNode:endNode,unitsTransferred:unitsTransferred,time:time});
 	let delay = Math.max(MOVE_DELAY+1-(new Date()-time),100)
+	console.log(delay)
 	setTimeout(function(_this){_this.checkMoves()},delay,this);
 	/*
 	setTimeout(function(_this,startNode,endNode,unitsTransferred)
@@ -940,13 +960,12 @@ Controller.prototype.moveUnits = function(startNode,endNode,unitsTransferred)
 	{
 		if (unitsTransferred > startNode.getUnitsOfTeam(this.team)) //prevent moving more units than are available
 			unitsTransferred = startNode.getUnitsOfTeam(this.team)
-		startNode.addUnits(this.team,-unitsTransferred);
-		if (startNode.nodeType == "portal" && startNode.team == this.team)
+		if (startNode.nodeType == "portal" && startNode.team == this.team && startNode.ready) //portals teleport instead of a normal move
 		{
-			endNode.addUnits(this.team,unitsTransferred);
-			addPacket({type:"teleport",number:unitsTransferred,node:startNode.id,otherNode:endNode.id})
+			startNode.teleport(endNode,unitsTransferred);
 			return;
 		}
+		startNode.addUnits(this.team,-unitsTransferred);
 		let moveGroup = new MovingGroup(this.team,unitsTransferred,startNode,endNode);
 		movingUnits.push(moveGroup);
 		addPacket({type:"move",team:this.team,number:unitsTransferred,node:startNode.id,otherNode:endNode.id,id:moveGroup.id})
@@ -1235,6 +1254,8 @@ PlayerController.prototype.spawn = function(name)
 	}
 	let spawnPoint = gameController.spawnNewPlayer(this,name);
 	this.client.emit("spawnsuccess",{team:this.team,spawnPoint:spawnPoint});
+	//move into the players group
+	players.push(this)
 }
 //transmit a move order
 PlayerController.prototype.move = function(data)
@@ -1285,11 +1306,20 @@ PlayerController.prototype.disconnect = function(data)
 			addPacket({type:"assault",node:node.id,points:node.capturePoints,team:node.captureTeam})
 		}
 	}
+	//remove from players and clients group
 	for (let n in players)
 	{
 		if (players[n] == this)
 		{
 			players.splice(n,1);
+			break;
+		}
+	}	
+	for (let n in clients)
+	{
+		if (clients[n] == this)
+		{
+			clients.splice(n,1);
 			break;
 		}
 	}
@@ -1365,7 +1395,7 @@ io.on('connection', function(client)
 		}
         //console.log(client);
 		//create a new player controller
-		players.push(new PlayerController(0,client))
+		clients.push(new PlayerController(0,client))
 		//client.emit("teams",teams)
 		//client.emit("map",gameMap.allObjects)
 	});
@@ -1378,9 +1408,9 @@ server.listen(80)
 //adds the given data packet to all player objects
 function addPacket(data)
 {
-	for (let p in players)
+	for (let p in clients)
 	{
-		players[p].packets.push(data)
+		clients[p].packets.push(data)
 		//players[p].sendPacket(data)
 	}
 }

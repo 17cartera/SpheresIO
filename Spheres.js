@@ -379,22 +379,24 @@ function PortalNode(position)
 {
 	Node.call(this,position,5);
 	this.nodeType = "portal";
+	this.ready = true;
 }
 //some sort of portal effect
 PortalNode.prototype.drawBody = function(viewport)
 {
+	//outer ring
 	draw.strokeStyle = teams[this.team].color;
 	draw.lineWidth = 4;
+	draw.beginPath();
+	draw.arc(this.pos.x-viewport.x,this.pos.y-viewport.y,this.size,0,2*Math.PI,false);
+	draw.stroke();
+	//the rest of the structure is neutral if the portal is recharging
+	draw.strokeStyle = (this.ready) ? teams[this.team].color : teams[0].color; 
 	//inner ring
 	draw.beginPath();
 	draw.arc(this.pos.x-viewport.x,this.pos.y-viewport.y,this.size*0.5,0,2*Math.PI,false);
 	draw.stroke();
-	//outer ring
-	draw.beginPath();
-	draw.arc(this.pos.x-viewport.x,this.pos.y-viewport.y,this.size,0,2*Math.PI,false);
-	draw.stroke();
 	//connecting lines
-	draw.lineWidth = 2;
 	draw.beginPath();
 	draw.moveTo(this.pos.x-viewport.x+this.size,this.pos.y-viewport.y);
 	draw.lineTo(this.pos.x-viewport.x+this.size*0.5,this.pos.y-viewport.y);
@@ -442,26 +444,42 @@ function MovingGroup(team,number,startNode,endNode)
 	this.direction = Position.getDirection(this.startNode.pos,this.endNode.pos);
 	this.remainingDistance = Position.getDistance(this.startNode.pos,this.endNode.pos);
 	this.lastMoveTime = new Date(); //time when the last move order was executed, should be at most 17 without any lag
+	/* //currently unused
+	this.units = []; //draw locations of all units
+	for (let x = 0; x < number; x++)
+	{
+		let angle = Math.random()*2*Math.PI;
+		let distance = Math.random()+0.25;
+		this.units.push({angle:angle,distance:distance});
+	}
+	*/
 }
+//draws a cloud of units
 MovingGroup.prototype.drawObject = function(viewport) 
 {
 	if (teams[this.team] == undefined) 
-	{console.log("Invalid Moving Group Team");return;}
-	//draws a cloud of units
+		{console.log("Invalid Moving Group Team");return;}
 	draw.fillStyle = teams[this.team].color;
-	if (true || graphics.zoomLevel < 2)
+	for (let unitindex = 0; unitindex < this.number; unitindex += 1) 
 	{
-		for (let unitindex = 0; unitindex < this.number; unitindex += 1) 
-		{
-			let angle = Math.random()*2*Math.PI;
-			let distance = (20+this.number/10)*(1+Math.random());
-			let unitx = this.pos.x-viewport.x+(Math.cos(angle)*distance);
-			let unity = this.pos.y-viewport.y+(Math.sin(angle)*distance);					
-			//draw.fillRect(unitx-2,unity-2,4,4); made smaller due to scale change
-			draw.fillRect(unitx-1,unity-1,2,2);
-		}
+		let angle = Math.random()*2*Math.PI;
+		let distance = (20+this.number/5)*(0.5+Math.random()*1.5);
+		let unitx = this.pos.x-viewport.x+(Math.cos(angle)*distance);
+		let unity = this.pos.y-viewport.y+(Math.sin(angle)*distance);					
+		//draw.fillRect(unitx-2,unity-2,4,4); made smaller due to scale change
+		draw.fillRect(unitx-1,unity-1,2,2);
 	}
-	draw.fillText(this.number,this.pos.x-viewport.x,this.pos.y-viewport.y);
+	draw.fillText(this.number,this.pos.x-viewport.x,this.pos.y-viewport.y)
+	/* //beta design
+	for (let n in this.units)
+	{
+		let unit = this.units[n];
+		let angle = unit.angle; let distance = unit.distance*(20+this.number/5);
+		let unitx = this.pos.x-viewport.x+(Math.cos(angle)*distance);
+		let unity = this.pos.y-viewport.y+(Math.sin(angle)*distance);
+		draw.fillRect(unitx-1,unity-1,2,2);
+	}
+	*/
 }
 //moves the group towards its destination
 MovingGroup.prototype.move = function() 
@@ -1341,17 +1359,20 @@ function processPackets(data)
 			setTimeout(function() {delete teams[entry.index];},10) //remove after a short delay to prevent errors
 			break;
 			case "teleport": //draw the teleport effect
+			let targetNode = getObjectById(entry.otherNode)
 			for (let n = 1; n <= entry.number;n++)
 			{
 				let angle = Math.random()*2*Math.PI;
 				let distance = Math.random()*20;
 				let startPos = new Position(node.pos.x + distance*Math.cos(angle),node.pos.y + distance*Math.sin(angle))
-				let targetNode = getObjectById(entry.otherNode)
 				angle = Math.random()*2*Math.PI; //same angle on both start and end points?
 				distance = targetNode.size*(1.25+Math.random()*0.5)
 				let endPos = new Position(targetNode.pos.x+distance*Math.cos(angle),targetNode.pos.y+distance*Math.sin(angle))
 				graphics.addLaserEffect(startPos,endPos,teams[node.team].color)
 			}
+			//show that the portal is in cooldown
+			node.ready = false;
+			setTimeout(function(_this){_this.ready = true},entry.number*PORTAL_DELAY,node);
 			break;
 			case "addNode": //a new node has been generated
 			console.log("New node discovered");

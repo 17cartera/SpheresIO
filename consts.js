@@ -3,7 +3,7 @@ function exportConsts(scope)
 {
     scope.SIZE_SCALE = 0.5; //general game size multiplier (smaller = easier graphics rendering)
     scope.CAPTURE_TIME = 3; //number of seconds it takes 10 units to capture a level 1 node
-    scope.FIGHT_TIME = 1; //amount of time between each round of fight with 10 units
+    scope.FIGHT_TIME = 1.2; //amount of time between each round of fight with 10 units
     scope.SPAWN_TIME = 1.2; //amount of seconds it takes to spawn 1 unit at baseline
     scope.UNITS_PER_LEVEL = 10; //population capacity granted for each level of node controlled
     scope.REINFORCEMENT_TIME = 2; //amount of time it takes to build each unit of reinforcements
@@ -21,6 +21,8 @@ function exportConsts(scope)
     scope.TURRET_RANGE = 1000*scope.SIZE_SCALE //range of turrets
     scope.TURRET_ROF = 10; //amount of shots each turret can take per second
     scope.FACTORY_PRODUCTION = 3; //amount of units factories produce per second
+    scope.PORTAL_DELAY = 100; //amount of milliseconds a portal needs to recharge after teleporting units
+    scope.PORTAL_ATTRITION = .25; //percentage of units past MAX_UNITS lost when teleporting
     scope.CORE_ROTATION = 10; //amount of degrees per second of rotation nodes get around their core
     scope.CORE_SIZE = 200; //size of cores
     scope.fontSize = 16; //base font size  
@@ -47,7 +49,7 @@ function exportConsts(scope)
     scope.PORTALS_TO_GENERATE = 1; //amount of portals to place on the map
     scope.TURRETS_TO_GENERATE = 3; //amount of turrets to place on the map
     /**/
-    /*large map
+    /*large map*/
     scope.BOT_COUNT = 5; //maximum amount of AI teams present
     scope.MIN_PLAYERS = 10; //minimum amount of total players before no more AI teams should be spawned
     scope.MAX_PLAYERS = 40; //maximum amount of players the server can support
@@ -58,7 +60,7 @@ function exportConsts(scope)
     scope.PORTALS_TO_GENERATE = 4; //amount of portals to place on the map
     scope.TURRETS_TO_GENERATE = 10; //amount of turrets to place on the map
     /**/
-    /*massive map*/
+    /*massive map
     scope.BOT_COUNT = 10; //maximum amount of AI teams present
     scope.MIN_PLAYERS = 25; //minimum amount of total players before no more AI teams should be spawned
     scope.MAX_PLAYERS = 100; //maximum amount of players the server can support
