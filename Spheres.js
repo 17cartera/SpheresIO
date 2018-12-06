@@ -711,9 +711,10 @@ ViewPort.prototype.handleResize = function(e)
 	this.width = window.innerWidth*this.zoomLevel;
 	this.height = window.innerHeight*this.zoomLevel;
 }
-//zooms the screen in and out
+//zooms the screen in and out (on scroll wheel effect)
 ViewPort.prototype.zoom = function(e) 
 {
+	e.preventDefault(); //prevent scrolling on iframes?
 	let scrollAmount = e.wheelDelta/-120;
 	this.zoomLevel += scrollAmount*0.05;
 	//put limits on zoom level
@@ -1128,7 +1129,7 @@ PlayerController.prototype.getDoubleClick = function(e)
 	{
 		let node = this.lastMoved[n]
 		let unitsTransferred = node.getUnitsOfTeam(this.team)
-		socket.emit("move",{startNode:node.id,endNode:this.lastTarget.id,unitsTransferred:unitsTransferred})
+		socket.emit("move",{startNode:node.id,endNode:this.lastTarget.id,unitsTransferred:unitsTransferred,time:new Date()})
 	}			
 	//deselect nodes
 	for (let n in this.selectedNodes)

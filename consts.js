@@ -50,7 +50,7 @@ function exportConsts(scope)
     scope.TURRETS_TO_GENERATE = 3; //amount of turrets to place on the map
     /**/
     /*large map*/
-    scope.BOT_COUNT = 5; //maximum amount of AI teams present
+    scope.BOT_COUNT = 0//5; //maximum amount of AI teams present
     scope.MIN_PLAYERS = 10; //minimum amount of total players before no more AI teams should be spawned
     scope.MAX_PLAYERS = 40; //maximum amount of players the server can support
     scope.MAP_SIZE = 10000*scope.SIZE_SCALE; //height and width of the map

@@ -931,7 +931,13 @@ Controller.prototype.addMoveOrder = function(startNode,endNode,unitsTransferred,
 	time = (time == undefined) ? new Date() : new Date(time); //if a timestamp has been provided use that instead
 	this.moveOrders.push({startNode:startNode,endNode:endNode,unitsTransferred:unitsTransferred,time:time});
 	let delay = Math.max(MOVE_DELAY+1-(new Date()-time),100)
-	console.log(delay)
+	if (delay > MOVE_DELAY+1)
+	{
+		console.log("Move delay too large");
+		console.log(new Date()-time);
+		console.log(delay);
+		delay = MOVE_DELAY+1;
+	}
 	setTimeout(function(_this){_this.checkMoves()},delay,this);
 	/*
 	setTimeout(function(_this,startNode,endNode,unitsTransferred)

@@ -5,6 +5,10 @@ Future Updates:
 *Probably optimize other stuff
 *Fix double-click mechanics
 
+Next Update:
+*Fixed scrolling issues in Iframe
+*Fixed bugs causing a longer-than-normal movement delay
+
 0.4 (11/29/18)
 *Improved the animation for moving unit groups
 *Balance Changes:
