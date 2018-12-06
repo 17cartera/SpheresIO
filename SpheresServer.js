@@ -916,7 +916,7 @@ function Controller(team)
 	this.unitCapacity = 0; //this team's unit capacity
 }
 //adds a move order to this controller's queue
-Controller.prototype.addMoveOrder = function(startNode,endNode,unitsTransferred,time)
+Controller.prototype.addMoveOrder = function(startNode,endNode,unitsTransferred)
 {
 	//check to see if this move order is already present
 	for (let n in this.moveOrders)
@@ -928,16 +928,8 @@ Controller.prototype.addMoveOrder = function(startNode,endNode,unitsTransferred,
 			return;
 		}
 	}
-	time = (time == undefined) ? new Date() : new Date(time); //if a timestamp has been provided use that instead
-	this.moveOrders.push({startNode:startNode,endNode:endNode,unitsTransferred:unitsTransferred,time:time});
-	let delay = Math.max(MOVE_DELAY+1-(new Date()-time),100)
-	if (delay > MOVE_DELAY+1)
-	{
-		console.log("Move delay too large");
-		console.log(new Date()-time);
-		console.log(delay);
-		delay = MOVE_DELAY+1;
-	}
+	this.moveOrders.push({startNode:startNode,endNode:endNode,unitsTransferred:unitsTransferred,time:new Date()});
+	let delay = MOVE_DELAY+1;
 	setTimeout(function(_this){_this.checkMoves()},delay,this);
 	/*
 	setTimeout(function(_this,startNode,endNode,unitsTransferred)
@@ -1276,7 +1268,7 @@ PlayerController.prototype.move = function(data)
 		return;
 	}
 	//transmit the move order
-	this.addMoveOrder(startNode,endNode,data.unitsTransferred,data.time)
+	this.addMoveOrder(startNode,endNode,data.unitsTransferred)
 }
 //handle player disconnect
 PlayerController.prototype.disconnect = function(data)

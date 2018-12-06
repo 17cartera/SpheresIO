@@ -1100,7 +1100,7 @@ PlayerController.prototype.getMouseUp = function(e)
 				{
 					//console.log("Moving Units")
 					this.lastMoved.push(otherNode)
-					socket.emit("move",{startNode:otherNode.id,endNode:node.id,unitsTransferred:unitsTransferred,time:new Date()})
+					socket.emit("move",{startNode:otherNode.id,endNode:node.id,unitsTransferred:unitsTransferred})
 				}
 			}
 			//initialize double click detection
@@ -1129,7 +1129,7 @@ PlayerController.prototype.getDoubleClick = function(e)
 	{
 		let node = this.lastMoved[n]
 		let unitsTransferred = node.getUnitsOfTeam(this.team)
-		socket.emit("move",{startNode:node.id,endNode:this.lastTarget.id,unitsTransferred:unitsTransferred,time:new Date()})
+		socket.emit("move",{startNode:node.id,endNode:this.lastTarget.id,unitsTransferred:unitsTransferred})
 	}			
 	//deselect nodes
 	for (let n in this.selectedNodes)
