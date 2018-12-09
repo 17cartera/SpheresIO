@@ -202,7 +202,7 @@ function gameTick()
 		gameController.spawnNewPlayer(new BotController(teams.length),"Bot");
 	}
 	//change up the map
-	if (Math.random()*100 <= 1)
+	if (Math.random()*100 <= 1 && clients.length > 0)
 	{
 		//add a new node
 		while(!gameController.placeNode(new Node(new Position(Math.random()*MAP_SIZE,Math.random()*MAP_SIZE),
@@ -911,45 +911,8 @@ function Team(color,controller,name)
 function Controller(team) 
 {
 	this.occupiedNodes = []; //list of all nodes with this team's units on them, or that are owned by this team
-	this.moveOrders = []; //list of all move orders that are queued up
 	this.team = team; //ID of this controller's team
 	this.unitCapacity = 0; //this team's unit capacity
-}
-//adds a move order to this controller's queue
-Controller.prototype.addMoveOrder = function(startNode,endNode,unitsTransferred)
-{
-	//check to see if this move order is already present
-	for (let n in this.moveOrders)
-	{
-		let move = this.moveOrders[n];
-		if (startNode == move.startNode && endNode == move.endNode)
-		{
-			move.unitsTransferred += unitsTransferred
-			return;
-		}
-	}
-	this.moveOrders.push({startNode:startNode,endNode:endNode,unitsTransferred:unitsTransferred,time:new Date()});
-	let delay = MOVE_DELAY+1;
-	setTimeout(function(_this){_this.checkMoves()},delay,this);
-	/*
-	setTimeout(function(_this,startNode,endNode,unitsTransferred)
-	{_this.moveUnits(startNode,endNode,unitsTransferred)}
-	,delay,startNode,endNode,unitsTransferred)
-	*/
-}
-//checks all move orders and executes any that are ready
-Controller.prototype.checkMoves = function()
-{
-	let time = new Date()
-	for (let index = this.moveOrders.length-1; index >= 0; index--)
-	{
-		let move = this.moveOrders[index];
-		if (time - move.time >= MOVE_DELAY)
-		{
-			this.moveUnits(move.startNode,move.endNode,move.unitsTransferred);
-			this.moveOrders.splice(index,1);
-		}
-	}
 }
 //creates a moving group between the target node and the other node
 Controller.prototype.moveUnits = function(startNode,endNode,unitsTransferred)
@@ -1078,7 +1041,7 @@ BotController.prototype.runAI = function()
 	//this.getData();
 	//assign values
 	//this.assignValues();
-	if (Math.random() <= this.reaction && this.occupiedNodes.length != 0 && players.length > 0) 
+	if (Math.random() <= this.reaction && this.occupiedNodes.length != 0 && clients.length > 0) 
 	{
 		this.getData();
 		this.assignValues();
@@ -1097,7 +1060,7 @@ BotController.prototype.runAI = function()
 		}
 		//make the chosen move
 		if (chosenMove != null)
-			this.addMoveOrder(chosenMove.origin,chosenMove.target,Math.floor(chosenMove.origin.getUnitsOfTeam(this.team)*this.movePercentage));
+			this.moveUnits(chosenMove.origin,chosenMove.target,Math.floor(chosenMove.origin.getUnitsOfTeam(this.team)*this.movePercentage));
 		//occasionally change the move percentage
 		if (Math.random() < 0.1)
 			this.movePercentage = 0.3+Math.random()*0.6;
@@ -1187,6 +1150,7 @@ function PlayerController(team,client)
 	Controller.call(this,team);
 	this.client = client //connection data for this client
 	this.packets = []; //data packets to send to the client
+	this.recentMoves = []; //moving groups that will need to be updated on a power move
 	//set up to transfer data to the client
 	this.transferAllData() //send all data to allow client to load the map
 	setInterval(function(_this){_this.sendPackets();},10,this); //send packet set to the client
@@ -1194,16 +1158,25 @@ function PlayerController(team,client)
 	this.client.player = this
 	this.client.on('spawn', function(data) //the client is requesting to spawn in
 	{
-		console.log("Spawning New Player " + data)
-		this.player.spawn(data)
+		console.log("Spawning New Player " + data);
+		this.player.spawn(data);
 	});
 	this.client.on('move', function(data) //the client is sending a move order
 	{
-		this.player.move(data)
+		this.player.move(data);
+	});
+	this.client.on('moves', function(data) //the client is sending move orders
+	{
+		this.player.handleMoves(data);
+		//this.player.handleMoves(data.movingNodes,data.targetNode,data.percentage)
+	});
+	this.client.on('powermove', function(data) //client has made a double-click move
+	{
+		this.player.handlePowerMove();
 	});
 	this.client.on('disconnect', function(data) //client has disconnected
 	{
-		this.player.disconnect(data)
+		this.player.disconnect(data);
 	});
 }
 //transfer all map data to the client
@@ -1269,6 +1242,36 @@ PlayerController.prototype.move = function(data)
 	}
 	//transmit the move order
 	this.addMoveOrder(startNode,endNode,data.unitsTransferred)
+}
+//handle a power move
+PlayerController.prototype.handlePowerMove = function()
+{
+	for (let n in this.recentMoves)
+	{
+		let node = this.recentMoves[n].node;
+		let group = this.recentMoves[n].group;
+		if (node == undefined || group == undefined)
+			continue;
+		let num = node.getUnitsOfTeam(this.team);
+		node.addUnits(this.team,-num);
+		group.number += num;
+		addPacket({type:"groupLoss",id:group.id,number:-num});
+	}
+}
+//parse a compressed move order packet
+PlayerController.prototype.handleMoves = function(data)
+{
+	let targetNode = getObjectById(data.targetNode);
+	if (targetNode == undefined) return;
+	for (let n in data.movingNodes)
+	{
+		let movingNode = getObjectById(data.movingNodes[n]);
+		if (movingNode == undefined) continue;
+		let moveAmt = Math.floor(data.percentage/100*movingNode.getUnitsOfTeam(this.team));
+		let group = this.moveUnits(movingNode,targetNode,moveAmt);
+		this.recentMoves.push({node:movingNode,group:group});
+	}
+	setTimeout(function(_this){_this.recentMoves = [];},500,this);
 }
 //handle player disconnect
 PlayerController.prototype.disconnect = function(data)

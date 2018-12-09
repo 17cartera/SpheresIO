@@ -9,7 +9,6 @@ function exportConsts(scope)
     scope.REINFORCEMENT_TIME = 2; //amount of time it takes to build each unit of reinforcements
     scope.REINFORCEMENT_CAP = 100; //bonus unit cap for each team
     scope.FIGHT_SPAWN_MULTIPLIER = 1; //multiplier to spawning times while a node is in combat
-    scope.MOVE_DELAY = 250; //amount of milliseconds between an order arriving and an order executing
     scope.MOVE_SPEED = 300*scope.SIZE_SCALE; //number of pixels moved in a second
     scope.MAX_RANGE = 800*scope.SIZE_SCALE;//maximum range of a movingUnit group (currently only used by AI)
     scope.CONTROL_RANGE = 500*scope.SIZE_SCALE; //range from each node before units suffer attrition

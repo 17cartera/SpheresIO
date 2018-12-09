@@ -5,9 +5,12 @@ Future Updates:
 *Probably optimize other stuff
 *Fix double-click mechanics
 
-Next Update:
+0.5 (12/8/18)
+*Refactored netcode, removing move delay while still handling double-click moves
+*Improved UI graphics
 *Fixed scrolling issues in Iframe
 *Removed lag compensation on movement delay because it was causing additional lag
+*Prevented terrain changes when no players are online from crippling bots
 
 0.4 (11/29/18)
 *Improved the animation for moving unit groups

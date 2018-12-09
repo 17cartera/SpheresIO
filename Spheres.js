@@ -242,6 +242,8 @@ Node.prototype.drawObject = function(viewport)
 		draw.beginPath();
 		draw.arc(this.pos.x-viewport.x,this.pos.y-viewport.y,this.size*1.5,0,2*Math.PI,false);
 		draw.stroke();
+		//draw line from this node to the cursor
+		this.drawSelectionLine(viewport);
 	}
 	//if the node is being captured, draw the capture meter
 	if (this.capturePoints != 0) 
@@ -262,6 +264,19 @@ Node.prototype.drawBody = function(viewport)
 	draw.beginPath();
 	draw.arc(this.pos.x-viewport.x,this.pos.y-viewport.y,this.size,0,2*Math.PI,false);
 	draw.fill();
+}
+//draws the line from this node to the selection point
+Node.prototype.drawSelectionLine = function(viewport,dashed)
+{
+	let endPoint = (player.hoveredNode == undefined) ? player.mousePos : player.hoveredNode.pos;
+	draw.strokeStyle = "rgba(128,128,128,.5)";
+	draw.lineWidth = 3;	
+	if (dashed) draw.setLineDash([5, 5]); //make a dashed line
+	draw.beginPath();
+	draw.moveTo(this.pos.x-viewport.x,this.pos.y-viewport.y);
+	draw.lineTo(endPoint.x-viewport.x,endPoint.y-viewport.y);
+	draw.stroke();	
+	if (dashed) draw.setLineDash([[]]); //make sure all other lines aren't also dashed
 }
 //returns the amount of units of the given team on this node
 Node.prototype.getUnitsOfTeam = function(team)
@@ -407,6 +422,11 @@ PortalNode.prototype.drawBody = function(viewport)
 	draw.moveTo(this.pos.x-viewport.x,this.pos.y-viewport.y-this.size);
 	draw.lineTo(this.pos.x-viewport.x,this.pos.y-viewport.y-this.size*0.5);
 	draw.stroke();
+}
+//if portal is ready to teleport show a dashed line
+PortalNode.prototype.drawSelectionLine = function(viewport,dashed)
+{
+	Node.prototype.drawSelectionLine.call(this,viewport,(this.team == player.team && this.ready))
 }
 //special node type: core, cannot be directly accessed
 CoreNode.prototype = new Node();
@@ -649,8 +669,24 @@ function drawMain()
 		//only draw if the object is near the viewport
 		if (node.nodeType == "core" || (node.pos.x >= vLeft && node.pos.y >= vTop && node.pos.x <= vRight && node.pos.y <= vBottom))
 			node.drawObject(graphics);
-		else if (node.nodeType == "turret" && node.team != 0) //draw turret ranges if they aren't in view
-			node.drawRange(graphics);
+		else //with some exceptions
+		{
+			if (node.nodeType == "turret" && node.team != 0) //draw turret ranges if they aren't in view
+				node.drawRange(graphics);
+			if (node.selected) //draw the selection line
+				node.drawSelectionLine(graphics);
+		}
+	}
+	//highlight the node the player's mouse is over
+	if (player.hoveredNode != undefined)
+	{
+		console.log("drawing hovered node indicator")
+		let node = player.hoveredNode;
+		draw.strokeStyle = "rgba(128,128,128,1)";
+		draw.lineWidth = 3;
+		draw.beginPath();
+		draw.arc(node.pos.x-graphics.x,node.pos.y-graphics.y,node.size*1.5,0,2*Math.PI,false);
+		draw.stroke();
 	}
 	//update the unit indicator
 	unitCounter.innerHTML = "POP:" + player.getTotalUnits() + "/" + player.unitCapacity
@@ -886,12 +922,13 @@ function PlayerController(team)
 {
 	Controller.call(this,team);
 	this.selectedNodes = []; //nodes the player has currently selected
-	this.lastMoved = []; this.lastTarget = undefined; //nodes involved in the last move order (for double-clicks)
+	//this.lastMoved = []; this.lastTarget = undefined; //nodes involved in the last move order (for double-clicks)
 	this.selecting = false; //whether or not to select nodes the mouse hovers over
 	this.dragMode = false; //whether the user has clicked on empty space
 	this.pixelsMoved = 0; //amount of pixels the camera has been moved
 	this.boxSelectPoint = undefined; //the point that box select started on, or undefined if box select is inactive
 	this.mousePos; //the current mouse position
+	this.hoveredNode = undefined; //the node the mouse is currently over
 	//graphics.scrollDirections = new Set([]) //keys currently pressed
 	this.unitPercentage = 50; //percentage of units sent on move orders
 	//add control handlers
@@ -1024,6 +1061,7 @@ PlayerController.prototype.getKeyUp = function(e)
 		break;
 	}
 }
+//reads mouse input
 PlayerController.prototype.getMouseDown = function(e) 
 {
 	e.preventDefault();
@@ -1031,7 +1069,7 @@ PlayerController.prototype.getMouseDown = function(e)
 	if (this.team !== undefined)
 	{
 		//detect the node that is clicked on
-		let node = this.detectSelectedNode()
+		let node = this.hoveredNode;
 		//if selectedNodes has no nodes in it, select the clicked node
 		if (node !=  undefined) 
 		{
@@ -1050,32 +1088,25 @@ PlayerController.prototype.getMouseDown = function(e)
 }
 PlayerController.prototype.getMouseMove = function(e) 
 {
-	let nextPos = new Position((e.clientX*graphics.zoomLevel)+graphics.x, (e.clientY*graphics.zoomLevel)+graphics.y);
-	if (this.team !== undefined && this.selecting)
+	let lastPos = this.mousePos
+	this.mousePos = new Position((e.clientX*graphics.zoomLevel)+graphics.x, (e.clientY*graphics.zoomLevel)+graphics.y);
+	this.hoveredNode = this.detectSelectedNode();
+	if (this.team !== undefined && this.selecting)//drag selection mode
 	{
-		//detect the node that the mouse is over
-		let node = this.detectSelectedNode()
-		//select the clicked node
+		let node = this.hoveredNode
 		if (node != undefined) 
-		{
-			this.addSelectedNode(node);
-		}
+			this.addSelectedNode(this.hoveredNode);
 	}
-	else 
+	else if (this.dragMode) //drag the screen
 	{
-		if (this.dragMode) //drag the screen
-		{
-			let dx = this.mousePos.x-nextPos.x;
-			let dy = this.mousePos.y-nextPos.y;
-			graphics.x += dx;
-			graphics.y += dy;
-			nextPos.x += dx; nextPos.y += dy;
-			this.pixelsMoved += Math.abs(dx+dy)/graphics.zoomLevel
-		}
+		let dx = lastPos.x-this.mousePos.x;//this.mousePos.x-nextPos.x;
+		let dy = lastPos.y-this.mousePos.y;//this.mousePos.y-nextPos.y;
+		graphics.x += dx;
+		graphics.y += dy;
+		this.mousePos.x += dx; this.mousePos.y += dy;
+		this.pixelsMoved += Math.abs(dx+dy)/graphics.zoomLevel
 	}
-	this.mousePos = nextPos;
 }
-//reads mouse input
 PlayerController.prototype.getMouseUp = function(e) 
 {
 	e.stopPropagation();
@@ -1086,23 +1117,25 @@ PlayerController.prototype.getMouseUp = function(e)
 	{
 		this.selecting = false;
 		//detect the node that is clicked on
-		let node = this.detectSelectedNode()
+		let node = this.hoveredNode;
 		//if a node is selected, move units between both nodes
 		if (node != undefined && (node != this.selectedNodes[0] || this.selectedNodes.length > 1))
 		{
-			this.lastTarget = node;
+			//this.lastTarget = node;
+			let data = {movingNodes:[],targetNode:node.id,percentage:this.unitPercentage};
 			for (let x in this.selectedNodes) 
 			{
 				let otherNode = this.selectedNodes[x];
 				otherNode.selected = false;
-				let unitsTransferred = Math.floor(otherNode.getUnitsOfTeam(this.team)*(this.unitPercentage/100));
+				//let unitsTransferred = Math.floor(otherNode.getUnitsOfTeam(this.team)*(this.unitPercentage/100));
 				if (node != undefined && node != otherNode)
 				{
 					//console.log("Moving Units")
-					this.lastMoved.push(otherNode)
-					socket.emit("move",{startNode:otherNode.id,endNode:node.id,unitsTransferred:unitsTransferred})
+					data.movingNodes.push(otherNode.id);
+					//this.lastMoved.push(otherNode)
 				}
 			}
+			socket.emit("moves",data);
 			//initialize double click detection
 			setTimeout(function(_this){_this.lastMoved = [];_this.lastTarget = undefined;},500,this);
 			//clear all selected nodes
@@ -1124,13 +1157,8 @@ PlayerController.prototype.getMouseUp = function(e)
 //gets a double click
 PlayerController.prototype.getDoubleClick = function(e) 
 {
-	//console.log("Doubleclick detected")
-	for (let n in this.lastMoved)
-	{
-		let node = this.lastMoved[n]
-		let unitsTransferred = node.getUnitsOfTeam(this.team)
-		socket.emit("move",{startNode:node.id,endNode:this.lastTarget.id,unitsTransferred:unitsTransferred})
-	}			
+	//tell server about the power move
+	socket.emit("powermove");		
 	//deselect nodes
 	for (let n in this.selectedNodes)
 		this.selectedNodes[n].selected = false;
@@ -1143,7 +1171,7 @@ PlayerController.prototype.changeUnitPercentage = function()
 	this.unitPercentage = value;
 	unitValue.innerHTML = value + "%" //update the unit value text
 }
-//detects the node the player is clicking on
+//detects the node the mouse is over
 PlayerController.prototype.detectSelectedNode = function()
 {
 	let potentialSelections = gameMap.getAllInRange(this.mousePos,250);
