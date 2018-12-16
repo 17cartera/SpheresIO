@@ -1,10 +1,5 @@
 Beta:
 
-Future Updates:
-*Optimimize rotation mechanics
-*Probably optimize other stuff
-*Fix double-click mechanics
-
 0.6
 *Reworked spawning system: the player can now click on any neutral node to spawn in there.
 *Players now spawn with additional units, and their initial spawnpoint gains a significant boost for 1 minute.
