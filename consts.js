@@ -6,6 +6,7 @@ function exportConsts(scope)
     scope.FIGHT_TIME = 1.2; //amount of time between each round of fight with 10 units
     scope.SPAWN_TIME = 1.2; //amount of seconds it takes to spawn 1 unit at baseline
     scope.UNITS_PER_LEVEL = 10; //population capacity granted for each level of node controlled
+    scope.SPAWN_BONUS = 10; //additional levels granted to a player's first node for 60 seconds
     scope.REINFORCEMENT_TIME = 2; //amount of time it takes to build each unit of reinforcements
     scope.REINFORCEMENT_CAP = 100; //bonus unit cap for each team
     scope.FIGHT_SPAWN_MULTIPLIER = 1; //multiplier to spawning times while a node is in combat

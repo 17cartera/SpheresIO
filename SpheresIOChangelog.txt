@@ -5,6 +5,15 @@ Future Updates:
 *Probably optimize other stuff
 *Fix double-click mechanics
 
+0.6
+*Reworked spawning system: the player can now click on any neutral node to spawn in there.
+*Players now spawn with additional units, and their initial spawnpoint gains a significant boost for 1 minute.
+*Improved UI flow and tutorial
+*Added the ability to deselect single nodes using the X key
+*The player can no longer select nodes that they don't own or have units on
+*Fixed a bug that could allow cores to be selected by box selection
+*Fixed a security exploit
+
 0.5 (12/8/18)
 *Refactored netcode, removing move delay while still handling double-click moves
 *Improved UI graphics

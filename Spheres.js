@@ -21,9 +21,11 @@ document.getElementById("nameBox").value = getCookie("username");
 var initialize = function() 
 {
 	console.log("beginning game");
+	//hide title screen, expose UI elements
 	document.getElementById("title").style.visibility = "hidden";
-	document.getElementById("leaderboard").style.visibility = "visible";
-	document.getElementById("popCounter").style.visibility = "visible";
+	document.styleSheets[0].deleteRule(6); //UIhidden rule
+	//document.getElementById("leaderboard").style.visibility = "visible";
+	//document.getElementById("popCounter").style.visibility = "visible";
 	///new netcode elements
 	socket = io.connect(location.host)
 	//socket = io.connect('http://'+SERVER_IP+':80');
@@ -63,7 +65,8 @@ var initialize = function()
 	});
 	//older stuff
 	//gameBoard = new GameController();
-	graphics = new ViewPort(0,0,window.innerWidth,window.innerHeight);
+	graphics = new ViewPort(Math.random()*MAP_SIZE-window.innerWidth/2,Math.random()*MAP_SIZE-window.innerHeight/2,
+		window.innerWidth,window.innerHeight);
 	player = new PlayerController(undefined);
 	leaderBoard = new LeaderBoard();
 }
@@ -264,6 +267,15 @@ Node.prototype.drawBody = function(viewport)
 	draw.beginPath();
 	draw.arc(this.pos.x-viewport.x,this.pos.y-viewport.y,this.size,0,2*Math.PI,false);
 	draw.fill();
+	//large outer ring for capitals
+	if (this.nodeType == "capital")
+	{
+		draw.globalAlpha = 0.4;
+		draw.beginPath();
+		draw.arc(this.pos.x-viewport.x,this.pos.y-viewport.y,2*this.size,0,2*Math.PI,false)
+		draw.fill();
+		draw.globalAlpha = 1;
+	}
 }
 //draws the line from this node to the selection point
 Node.prototype.drawSelectionLine = function(viewport,dashed)
@@ -271,7 +283,7 @@ Node.prototype.drawSelectionLine = function(viewport,dashed)
 	let endPoint = (player.hoveredNode == undefined) ? player.mousePos : player.hoveredNode.pos;
 	draw.strokeStyle = "rgba(128,128,128,.5)";
 	draw.lineWidth = 3;	
-	if (dashed) draw.setLineDash([5, 5]); //make a dashed line
+	if (dashed) draw.setLineDash([10, 10]); //make a dashed line
 	draw.beginPath();
 	draw.moveTo(this.pos.x-viewport.x,this.pos.y-viewport.y);
 	draw.lineTo(endPoint.x-viewport.x,endPoint.y-viewport.y);
@@ -677,10 +689,10 @@ function drawMain()
 				node.drawSelectionLine(graphics);
 		}
 	}
-	//highlight the node the player's mouse is over
-	if (player.hoveredNode != undefined)
+	//highlight the node the player's mouse is over, if it would be relevant
+	if (player.hoveredNode != undefined && 
+		(player.selectedNodes.length > 0 || player.hoveredNode.getUnitsOfTeam(player.team) > 0 || player.hoveredNode.team == player.team))
 	{
-		console.log("drawing hovered node indicator")
 		let node = player.hoveredNode;
 		draw.strokeStyle = "rgba(128,128,128,1)";
 		draw.lineWidth = 3;
@@ -787,7 +799,6 @@ LeaderBoard.prototype.getLeaders = function()
 	});
 	this.top10 = allTeams.slice(0,10);
 	this.updateBoard();
-	setTimeout(function(_this){_this.getLeaders();},1000,this); //automatically recalculate leaders every 5 seconds
 }
 //update the leaderboard
 LeaderBoard.prototype.updateBoard = function() 
@@ -878,7 +889,7 @@ Controller.prototype.calculateUnitCapacity = function()
 	{
 		let node = this.occupiedNodes[n];
 		if (this.getOwner(node) == 1)
-			if (node.nodeType == undefined || node.nodeType == "orbital")
+			if (node.nodeType == undefined || node.nodeType == "orbital" || node.nodeType == "capital")
 				this.unitCapacity += node.level*UNITS_PER_LEVEL;
 			else if (node.nodeType == "core")
 				this.unitCapacity += 200;
@@ -943,18 +954,17 @@ function PlayerController(team)
 	unitSlider.oninput = function(e) {self.changeUnitPercentage();};
 }
 //spawns in the player
-PlayerController.prototype.spawn = function() 
+PlayerController.prototype.spawn = function(targetNode) 
 {
 	//pushes out a new color for the player
 	this.team = teams.length;
 	let name = document.getElementById("nameBox").value
-	sendSpawnPlayer(name)
+	socket.emit("spawn",{name:name,node:targetNode.id})
 	//save name in a cookie
 	var d = new Date();
-    d.setTime(d.getTime() + (7*24*60*60*1000)); //gets current time and adds 1 week
+    d.setTime(d.getTime() + (7*24*60*60*1000)); //cookie will delete after 1 week
     var expires = "expires="+ d.toUTCString();
     document.cookie = "username=" + name + ";" + expires + ";path=/";
-	//document.cookie=name;
 }
 //adds a selected node, avoiding duplicates
 PlayerController.prototype.addSelectedNode = function(node) 
@@ -1016,8 +1026,19 @@ PlayerController.prototype.getKeyboardInput = function(e)
 			this.selectedNodes[n].selected = false;
 		this.selectedNodes = [];
 		break;
+		case 88: //X, deselects the node under the cursor
+		for (let n in this.selectedNodes)
+		{
+			let node = this.selectedNodes[n];
+			if (node == this.hoveredNode)
+			{
+				this.selectedNodes.splice(n,1);
+				node.selected = false;
+				break;
+			}
+		}
 		default:
-		//console.log("Unidentified Key " + e.keyCode)
+		console.log("Unidentified Key " + e.keyCode)
 		break;
 	}
 }
@@ -1051,7 +1072,8 @@ PlayerController.prototype.getKeyUp = function(e)
 			for (let n in this.occupiedNodes)
 			{
 				let node = this.occupiedNodes[n]
-				if (node.pos.x > point1.x && node.pos.x < point2.x && node.pos.y > point1.y && node.pos.y < point2.y)
+				if (node.pos.x > point1.x && node.pos.x < point2.x && node.pos.y > point1.y && node.pos.y < point2.y
+					&& node.nodeType != "core")
 				{
 					this.addSelectedNode(node)
 				}
@@ -1074,7 +1096,11 @@ PlayerController.prototype.getMouseDown = function(e)
 		if (node !=  undefined) 
 		{
 			this.selecting = true;
-			this.addSelectedNode(node);
+			//don't select nodes we can't control
+			if (node.getUnitsOfTeam(this.team) > 0 || node.team == this.team)
+			{
+				this.addSelectedNode(node);
+			}
 		}
 		else //initiate click-drag mode 
 		{
@@ -1094,7 +1120,8 @@ PlayerController.prototype.getMouseMove = function(e)
 	if (this.team !== undefined && this.selecting)//drag selection mode
 	{
 		let node = this.hoveredNode
-		if (node != undefined) 
+		//select the node if we control it
+		if (node != undefined && (node.getUnitsOfTeam(this.team) > 0 || node.team == this.team)) 
 			this.addSelectedNode(this.hoveredNode);
 	}
 	else if (this.dragMode) //drag the screen
@@ -1144,7 +1171,9 @@ PlayerController.prototype.getMouseUp = function(e)
 	}
 	else 
 	{
-		if (this.pixelsMoved <= 10) //deselect if the user clicked on empty space without dragging a significant distance
+
+		//deselect if the user clicked on empty space without dragging a significant distance
+		if (this.pixelsMoved <= 10) 
 		{
 			for (let n in this.selectedNodes)
 				this.selectedNodes[n].selected = false;
@@ -1157,12 +1186,19 @@ PlayerController.prototype.getMouseUp = function(e)
 //gets a double click
 PlayerController.prototype.getDoubleClick = function(e) 
 {
-	//tell server about the power move
-	socket.emit("powermove");		
-	//deselect nodes
-	for (let n in this.selectedNodes)
-		this.selectedNodes[n].selected = false;
-	this.selectedNodes = [];
+	//if we aren't spawned in yet, tell the server we want to spawn in on the hovered node
+	if (this.team == undefined && this.hoveredNode != undefined)
+	{
+		this.spawn(this.hoveredNode);
+	}
+	else //tell server about the power move
+	{
+		socket.emit("powermove");
+		//deselect nodes
+		for (let n in this.selectedNodes)
+			this.selectedNodes[n].selected = false;
+		this.selectedNodes = [];
+	}
 }
 //updates the unit percentage
 PlayerController.prototype.changeUnitPercentage = function()
@@ -1280,6 +1316,11 @@ function addNode(entry)
 		case "core":
 		tempNode = new CoreNode(entry.pos);
 		break;
+		case "capital":
+		tempNode = new Node(entry.pos,entry.level);
+		tempNode.nodeType = "capital";
+		tempNode.size -= SPAWN_BONUS*10*SIZE_SCALE; //don't make the node larger than it should be
+		break;
 		default:
 		tempNode = new Node(entry.pos,entry.level);
 		break;
@@ -1377,14 +1418,12 @@ function processPackets(data)
 			}
 			break;
 			case "addTeam": //a new team has spawned in
-			console.log("Adding Team")
 			if (entry.index == player.team)
 				teams[entry.index] = new Team(entry.color,player,entry.name);
 			else
 				teams[entry.index] = new Team(entry.color,new Controller(),entry.name);
 			break;
 			case "removeTeam": //a team has been eliminated
-			console.log("Removing Team")
 			setTimeout(function() {delete teams[entry.index];},10) //remove after a short delay to prevent errors
 			break;
 			case "teleport": //draw the teleport effect
@@ -1404,25 +1443,29 @@ function processPackets(data)
 			setTimeout(function(_this){_this.ready = true},entry.number*PORTAL_DELAY,node);
 			break;
 			case "addNode": //a new node has been generated
-			console.log("New node discovered");
 			addNode(entry.newNode);
 			break;
-			case "removeNode": //a node is being destroyed
-			console.log("Node being destroyed");
+			case "removeNode": //a node is being destroyed	
 			gameMap.removeObject(node);
 			break;
 			case "disconnectMessage": //update the disconnect message
 			document.getElementById("disconnectMessage").innerHTML=entry.message
+			break;
+			case "addCapital": //a capital is being added
+			node.level += SPAWN_BONUS;
+			node.nodeType = "capital";
+			player.calculateUnitCapacity();
+			break;
+			case "removeCapital": //a capital is being removed
+			node.level -= SPAWN_BONUS;
+			node.nodeType = undefined;
+			player.calculateUnitCapacity();
 			break;
 			default: //unknown packet
 			console.log("Unknown packet type recieved " + entry.type);
 			break;
 		}
 	}
-}
-function sendSpawnPlayer(name)
-{
-	socket.emit("spawn",name)
 }
 function completeSpawn(data)
 {
@@ -1436,9 +1479,8 @@ function completeSpawn(data)
 	}
 	graphics.x = data.spawnPoint.pos.x-(graphics.width/2);
 	graphics.y = data.spawnPoint.pos.y-(graphics.height/2);
-	//reset data for the spawn point
-	//let spawnNode = getObjectById(data.spawnPoint.id)
-	//spawnNode.capturePoints = 0; spawnNode.captureTeam = 0; spawnNode.units = [];
+	//clear spawn-in instruction
+	changeAnnouncement("");
 }
 //shows the disconnect screen to the user
 function handleDisconnect(data)
@@ -1467,4 +1509,9 @@ function getCookie(cname) {
         }
     }
     return "";
+}
+
+function changeAnnouncement(announcement)
+{
+	document.getElementById("announcement").innerHTML = announcement;
 }

@@ -70,7 +70,13 @@ GameController.prototype.generateMap = function(height,width)
 	let t = 1;
 	while (t <= BOT_COUNT) 
 	{
-		this.spawnNewPlayer(new BotController(0),"Bot");
+		let node;
+		do
+		{
+			node = gameMap.allObjects[Math.floor(Math.random()*gameMap.allObjects.length)];
+		}
+		while (node.team != 0 || node.nodeType != undefined)//spawn fails if the node isn't neutral
+		this.spawnNewPlayer(new BotController(0),"Bot",node);
 		t++;
 	}
 }
@@ -101,9 +107,10 @@ GameController.prototype.placeNode = function(tempNode)
 GameController.prototype.destroyNode = function(node)
 {
 	//revert the node to neutral and remove all units to purge its lingering data
+	node.changeTeam(0);
 	for (let u in node.units)
 		node.addUnits(node.units[u].team,-node.units[u].number);
-	node.changeTeam(0);
+	node.destroyed = true; //tell the node to stop doing node things
 	//check moving groups and destroy those that lead to this target	
 	for (let n = movingUnits.length-1; n >= 0; n--) //kill moving units
 	{
@@ -118,8 +125,8 @@ GameController.prototype.destroyNode = function(node)
 	addPacket({type:"removeNode",node:node.id});
 	gameMap.removeObject(node);
 }
-//spawns in a new player
-GameController.prototype.spawnNewPlayer = function(controller,name)
+//spawns in a new player with the given name at spawnNode
+GameController.prototype.spawnNewPlayer = function(controller,name,spawnNode)
 {
 	let team = new Team(generateRandomColor(),controller,name);
 	//find an index for the team
@@ -135,32 +142,24 @@ GameController.prototype.spawnNewPlayer = function(controller,name)
 	teams[teamIndex] = team;
 	addPacket({type:"addTeam",index:teamIndex,color:team.color,name:team.name})
 	let isValidLocationFound = false;
-	let node;
 	let counter = 0;
-	while (!isValidLocationFound) //ensure that the location is neutral
+	//clear the node's units and spawn in the player's units
+	if (spawnNode && spawnNode.team == 0 && spawnNode.nodeType == undefined) 
 	{
-		counter++;
-		let index = Math.floor(Math.random()*gameMap.allObjects.length);
-		node = gameMap.allObjects[index];
-		if (node.team == 0 && node.nodeType == undefined) 
-		{
-			isValidLocationFound = true;
-			for (let u in node.units)
-				node.addUnits(node.units[u].team,-node.units[u].number)
-			node.changeTeam(teamIndex);
-			node.addUnits(teamIndex,100);
-		}
-		else if (counter > 10000) //force a spawn over a player's node if necessary
-		{
-			console.log("No neutral nodes, forced to overspawn player")
-			isValidLocationFound = true;
-			for (let u in node.units)
-				node.addUnits(node.units[u].team,-node.units[u].number)
-			node.changeTeam(teamIndex);
-			node.addUnits(teamIndex,100);
-		}
+		isValidLocationFound = true;
+		for (let u in spawnNode.units)
+			spawnNode.addUnits(spawnNode.units[u].team,-spawnNode.units[u].number)
+		spawnNode.changeTeam(teamIndex);
+		spawnNode.addUnits(teamIndex,200);
+		//temporarily give that node a level boost
+		spawnNode.upgradeToCapital();
 	}
-	return node;
+	else //spawn checks not successful
+	{
+		console.log("Spawn failed");
+		return;
+	}
+	return spawnNode;
 }
 //restarts the server
 GameController.prototype.restartGame = function(winner)
@@ -199,7 +198,13 @@ function gameTick()
 	if (numTeams < MIN_PLAYERS && numTeams-players.length < BOT_COUNT && Math.random()*1000 <= 1) 
 	{
 		console.log("Spawning a new bot")
-		gameController.spawnNewPlayer(new BotController(teams.length),"Bot");
+		let node;
+		do
+		{
+			node = gameMap.allObjects[Math.floor(Math.random()*gameMap.allObjects.length)];
+		}
+		while (node.team != 0 || node.nodeType != undefined)//spawn fails if the node isn't neutral
+		gameController.spawnNewPlayer(new BotController(teams.length),"Bot",node);
 	}
 	//change up the map
 	if (Math.random()*100 <= 1 && clients.length > 0)
@@ -425,6 +430,7 @@ Node.prototype.changeTeam = function(newTeam)
 //spawns a unit at this node if conditions are right 
 Node.prototype.spawn = function() 
 {
+	if (this.destroyed) return;
 	this.spawning = true;
 	let unitCount = this.getUnitsOfTeam(this.team)
 	let delay = (SPAWN_TIME*1000)/this.level;
@@ -483,6 +489,7 @@ Node.prototype.capture = function()
 //combat mechanics system (ported from BattleFunction program)
 Node.prototype.fight = function()
 {
+	if (this.destroyed) return;
 	//add the numbers of all teams to a total number
 	let unitNums = this.units;
 	var totalUnits = this.getTotalUnits()
@@ -537,6 +544,20 @@ Node.prototype.checkForAttrition = function()
 			setTimeout(function(_this){_this.checkForAttrition();},delay,this);
 		}
 	}
+}
+//upgrades the node to a capital
+Node.prototype.upgradeToCapital = function()
+{
+	addPacket({type:"addCapital",node:this.id});
+	this.level += SPAWN_BONUS;
+	this.nodeType = "capital";
+	//capital will return to normal in 60 seconds
+	setTimeout(function(_this)
+	{
+		addPacket({type:"removeCapital",node:_this.id});
+		_this.level -= SPAWN_BONUS;
+		_this.nodeType = undefined;
+	},60000,this)
 }
 //special node type: factory, high production unless fighting
 FactoryNode.prototype = new Node();
@@ -983,7 +1004,7 @@ Controller.prototype.calculateUnitCapacity = function()
 	{
 		let node = this.occupiedNodes[n];
 		if (this.getOwner(node) == 1)
-			if (node.nodeType == undefined || node.nodeType == "orbital")
+			if (node.nodeType == undefined || node.nodeType == "orbital" || node.nodeType == "capital")
 				this.unitCapacity += node.level*UNITS_PER_LEVEL;
 			else if (node.nodeType == "core")
 				this.unitCapacity += 200;
@@ -1158,7 +1179,7 @@ function PlayerController(team,client)
 	this.client.player = this
 	this.client.on('spawn', function(data) //the client is requesting to spawn in
 	{
-		console.log("Spawning New Player " + data);
+		console.log("Spawning New Player " + data.name);
 		this.player.spawn(data);
 	});
 	this.client.on('move', function(data) //the client is sending a move order
@@ -1211,19 +1232,23 @@ PlayerController.prototype.sendPacket = function(packet)
 	this.client.emit("data",packetObject)
 }
 //initiate the spawning process
-PlayerController.prototype.spawn = function(name)
+PlayerController.prototype.spawn = function(data)
 {
 	if (this.team != 0) //don't spawn a new player if we have already spawned in
 	{
 		console.log("Haxxor attempting to spawn in multiple times!");
 		return;
 	}
+	let name = data.name;
 	if (name.length > 20) //cap names at 20 chars
 	{
 		console.log("Someone's made a really long name!");
 		name = name.substring(0,20);
 	}
-	let spawnPoint = gameController.spawnNewPlayer(this,name);
+	name = name.replace(/</g,"").replace(/>/g,"") //implement anti-injection armor
+	let node = getObjectById(data.node)
+	if (node.team != 0 || node.nodeType != undefined) return; //spawn fails if the node isn't neutral
+	let spawnPoint = gameController.spawnNewPlayer(this,name,node);
 	this.client.emit("spawnsuccess",{team:this.team,spawnPoint:spawnPoint});
 	//move into the players group
 	players.push(this)
@@ -1276,7 +1301,7 @@ PlayerController.prototype.handleMoves = function(data)
 //handle player disconnect
 PlayerController.prototype.disconnect = function(data)
 {
-	if (teams[this.team] != undefined)
+	if (teams[this.team] != undefined && this.team != 0)
 		console.log("Player " + teams[this.team].name + " (" + this.team + ")" + " has disconnected")
 	else
 		console.log("A spectator has disconnected")
@@ -1365,20 +1390,6 @@ app.get('/', function(req, res,next) {
 app.get('/:filename', function(req , res){
 	res.sendFile(__dirname+"/"+req.params.filename);
 });
-/*
-//serve client script to client
-app.get('/Spheres.js', function(req, res,next) {  
-    res.sendFile(__dirname + '/Spheres.js');
-});
-//server constants to client
-app.get('/consts.js', function(req, res,next) {  
-    res.sendFile(__dirname + '/consts.js');
-});
-//send favicon to client
-app.get('/favicon.ico', function(req, res,next) {
-    res.sendFile(__dirname + '/favicon.ico');
-});
-*/
 //netcode?
 io.on('connection', function(client) 
 {  
