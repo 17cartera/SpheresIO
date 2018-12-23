@@ -952,6 +952,7 @@ function PlayerController(team)
 	canvas.ondblclick = function(e) {self.getDoubleClick(e);};
 	canvas.onmouseout = function(e) {self.selecting = false; self.dragMode = false;}; //resets modes if mouse exits game
 	unitSlider.oninput = function(e) {self.changeUnitPercentage();};
+	this.hasPlayerMoved = false; //whether the player has moved yet
 }
 //spawns in the player
 PlayerController.prototype.spawn = function(targetNode) 
@@ -1167,6 +1168,11 @@ PlayerController.prototype.getMouseUp = function(e)
 			setTimeout(function(_this){_this.lastMoved = [];_this.lastTarget = undefined;},500,this);
 			//clear all selected nodes
 			this.selectedNodes = [];
+			if (!this.hasPlayerMoved)
+			{
+				this.hasPlayerMoved = true;
+				changeAnnouncement("");
+			}
 		}
 	}
 	else 
@@ -1480,7 +1486,7 @@ function completeSpawn(data)
 	graphics.x = data.spawnPoint.pos.x-(graphics.width/2);
 	graphics.y = data.spawnPoint.pos.y-(graphics.height/2);
 	//clear spawn-in instruction
-	changeAnnouncement("");
+	changeAnnouncement("Click on your node to select it, then click on another node to send your units.");
 }
 //shows the disconnect screen to the user
 function handleDisconnect(data)

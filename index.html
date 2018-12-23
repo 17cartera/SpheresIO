@@ -21,7 +21,7 @@ h1
 ol 
 {
 	margin-top: 0px;
-	margin-left: 0px;
+	margin-left: 18px;
 	list-style-type:decimal;
 }
 p, ul
@@ -38,8 +38,8 @@ p, ul
 	z-index: 1;
 	top: 30%;
 	left: 30%;
-	width: 40%;
-	height: 50%;
+	width: 30em;
+	height: 20em;
 }
 .UIhidden
 {
@@ -79,12 +79,6 @@ p, ul
 	left: 30%;
 	width: 40%;
 	height: 5em;
-	/*
-	top: 0%;
-	left: 45%;
-	width: 10%;
-	height: 1.5em;
-	*/
 	pointer-events:none;
 }
 #leaderboard 
@@ -96,7 +90,7 @@ p, ul
 	z-index: 1;
 	top: 0%;
 	right: 0%;
-	width: 10em;
+	width: 12em;
 	height: 18em;
 	pointer-events:none;
 }
@@ -139,7 +133,7 @@ p, ul
 <div id = "title">
 	<h1>SpheresIO.net</h1>
 	<input type="textbox" id = "nameBox" value = "" maxlength = "20"> <br>
-	<input type="button" value = "Play" onclick = "initialize(); /*player.spawn()*/">
+	<input type="button" value = "  Play  " onclick = "initialize(); /*player.spawn()*/">
 	<!--<input type="button" value = "Spectate" onclick = "initialize();">-->
 	<!--
 	<input type="button" value = "How to play" onclick = "document.getElementById('howToPlay').style.visibility = 'visible'">
@@ -161,20 +155,6 @@ p, ul
 			<li>Hold spacebar to box select.</li>
 			<li>Press X to deselect the node underneath your mouse.</li>
 		</ul>
-		<!--
-		<ul>
-			<li>Left-click on a node to select it, drag your mouse across multiple nodes to select multiple.</li>
-			<li>Release or press left-click again on a target node to send units from your selected nodes to the target. Double-click to send all units.</li>
-			<li>Units will fight enemy units and attempt to capture territory, with more units dealing more damage and capturing faster.</li>
-			<li>Capture nodes to spawn more units and increase your unit capacity.</li>
-			<li>Use WASD or mouse dragging to move the camera, zoom in and out using the scroll wheel.</li>
-			<li>Q and E can be used to quickly change the percentage of units sent per move.</li>
-			<li>Hold spacebar to select all nodes in a box.</li>
-			<li>Your units will suffer attrition if they move outside of your territory range, or if too many are in one stack.</li>
-			<li>Some nodes have special properties, such as turrets that fire on enemy units or portals that teleport units.</li>
-			<li>Control three out of the four core regions to win the game!</li>
-		</ul>
-		-->
 	</div>
 	<div id = "settings">
 		<!-- Insert settings customization here -->

@@ -1,6 +1,11 @@
 Beta:
 
-0.6
+0.6.1 (12/23/18)
+*Improved the UI
+--Fixed a bug with the leaderboard
+--Improved the tutorial
+
+0.6 (12/16/18)
 *Reworked spawning system: the player can now click on any neutral node to spawn in there.
 *Players now spawn with additional units, and their initial spawnpoint gains a significant boost for 1 minute.
 *Improved UI flow and tutorial
