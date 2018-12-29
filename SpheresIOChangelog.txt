@@ -1,5 +1,8 @@
 Beta:
 
+0.6.2
+*Fixed a bug causing zooming in and out to crash the game on Firefox
+
 0.6.1 (12/23/18)
 *Improved the UI
 --Fixed a bug with the leaderboard

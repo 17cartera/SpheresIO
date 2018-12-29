@@ -763,8 +763,7 @@ ViewPort.prototype.handleResize = function(e)
 ViewPort.prototype.zoom = function(e) 
 {
 	e.preventDefault(); //prevent scrolling on iframes?
-	let scrollAmount = e.wheelDelta/-120;
-	this.zoomLevel += scrollAmount*0.05;
+	this.zoomLevel += (e.deltaY < 0) ? -0.05 : 0.05;
 	//put limits on zoom level
 	if (this.zoomLevel > 3) this.zoomLevel = 3;
 	if (this.zoomLevel < 1) this.zoomLevel = 1;
